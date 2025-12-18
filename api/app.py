@@ -58,6 +58,9 @@ def upload():
             "error": "File must be a CSV"
         }), 400
     
+    temp_csv_path = None
+    db_path = None
+    
     try:
         # Generate unique session ID
         session_id = str(uuid.uuid4())
@@ -82,16 +85,36 @@ def upload():
             "transactions_loaded": transactions_loaded
         })
         
-    except Exception as e:
-        # Clean up temporary files if they exist
-        if 'temp_csv_path' in locals() and os.path.exists(temp_csv_path):
+    except ValueError as e:
+        # User error - invalid CSV format
+        print(f"[Upload Error] ValueError: {str(e)}")
+        
+        # Clean up temporary files
+        if temp_csv_path and os.path.exists(temp_csv_path):
             os.remove(temp_csv_path)
-        if 'db_path' in locals() and os.path.exists(db_path):
+        if db_path and os.path.exists(db_path):
             os.remove(db_path)
         
         return jsonify({
             "success": False,
             "error": str(e)
+        }), 400
+        
+    except Exception as e:
+        # Server error - log full traceback
+        import traceback
+        print("[Upload Error] Unexpected error:")
+        traceback.print_exc()
+        
+        # Clean up temporary files
+        if temp_csv_path and os.path.exists(temp_csv_path):
+            os.remove(temp_csv_path)
+        if db_path and os.path.exists(db_path):
+            os.remove(db_path)
+        
+        return jsonify({
+            "success": False,
+            "error": "An unexpected error occurred while processing your file"
         }), 500
 
 
