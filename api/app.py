@@ -1,9 +1,9 @@
 from flask import Flask, jsonify, request
+from werkzeug.exceptions import RequestEntityTooLarge
 import sys
 import os
 import uuid
 import tempfile
-from werkzeug.utils import secure_filename
 
 # Add parent directory to path to import core modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,6 +14,9 @@ from core.loader import load_csv_to_db
 
 app = Flask(__name__)
 
+# File size limit: 10 MB
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
 # Database path (absolute path for deployment safety)
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "smartspend.db")
 
@@ -22,6 +25,15 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 def health():
     """Health check endpoint"""
     return jsonify({"status": "ok"})
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    """Handle file size limit exceeded"""
+    return jsonify({
+        "success": False,
+        "error": "CSV file exceeds maximum size limit of 10MB."
+    }), 400
 
 
 @app.route('/upload', methods=['POST'])
@@ -73,7 +85,7 @@ def upload():
         file.save(temp_csv_path)
         
         # Load CSV into session database
-        transactions_loaded = load_csv_to_db(temp_csv_path, db_path)
+        transactions_loaded, mapping_info = load_csv_to_db(temp_csv_path, db_path)
         
         # Delete temporary CSV file
         os.remove(temp_csv_path)
@@ -82,7 +94,8 @@ def upload():
             "success": True,
             "session_id": session_id,
             "message": "File processed. Data is isolated and will be deleted automatically.",
-            "transactions_loaded": transactions_loaded
+            "transactions_loaded": transactions_loaded,
+            "mapping_info": mapping_info
         })
         
     except ValueError as e:

@@ -1,20 +1,150 @@
 import sqlite3
 import pandas as pd
+import re
+
+
+def normalize_column_name(col):
+    """Normalize column name for matching."""
+    col = str(col).lower().strip()
+    col = re.sub(r'[_\s\-/]+', '', col)
+    return col
+
+
+def detect_date_column(columns):
+    """Detect date column from CSV headers."""
+    aliases = ['date', 'transactiondate', 'txndate', 'postingdate', 'valuedate']
+    normalized = {normalize_column_name(col): col for col in columns}
+    
+    for alias in aliases:
+        if alias in normalized:
+            return normalized[alias]
+    
+    raise ValueError("Unsupported CSV format. Could not identify date column. Expected one of: date, transaction_date, txn_date, posting_date, value_date.")
+
+
+def detect_description_column(columns):
+    """Detect description column from CSV headers."""
+    aliases = ['description', 'name', 'narration', 'merchant', 'details', 'particulars', 'remarks']
+    normalized = {normalize_column_name(col): col for col in columns}
+    
+    for alias in aliases:
+        if alias in normalized:
+            return normalized[alias]
+    
+    raise ValueError("Unsupported CSV format. Could not identify description column. Expected one of: description, name, narration, merchant, details, particulars, remarks.")
+
+
+def detect_amount_pattern(columns):
+    """Detect amount representation pattern in CSV."""
+    normalized = {normalize_column_name(col): col for col in columns}
+    
+    # Pattern A: DrCr + Amount
+    drcr_aliases = ['drcr', 'type', 'transactiontype', 'txntype']
+    amount_aliases = ['amount', 'amt', 'value', 'transactionamount']
+    
+    drcr_col = None
+    amount_col = None
+    
+    for alias in drcr_aliases:
+        if alias in normalized:
+            drcr_col = normalized[alias]
+            break
+    
+    for alias in amount_aliases:
+        if alias in normalized:
+            amount_col = normalized[alias]
+            break
+    
+    if drcr_col and amount_col:
+        return ('drcr', drcr_col, amount_col)
+    
+    # Pattern B: Debit + Credit
+    debit_aliases = ['debit', 'withdrawal', 'debitamount', 'dr', 'withdrawalamount', 'withdrawalamt']
+    credit_aliases = ['credit', 'deposit', 'creditamount', 'cr', 'depositamount', 'depositamt']
+    
+    debit_col = None
+    credit_col = None
+    
+    for alias in debit_aliases:
+        if alias in normalized:
+            debit_col = normalized[alias]
+            break
+    
+    for alias in credit_aliases:
+        if alias in normalized:
+            credit_col = normalized[alias]
+            break
+    
+    if debit_col and credit_col:
+        return ('debit_credit', debit_col, credit_col)
+    
+    # Pattern C: Signed Amount
+    signed_aliases = amount_aliases + ['balance']
+    for alias in signed_aliases:
+        if alias in normalized:
+            return ('signed', normalized[alias])
+    
+    raise ValueError("Unsupported CSV format. Could not identify amount columns. Expected one of: (1) DrCr + Amount columns, (2) Debit + Credit columns, or (3) signed Amount column.")
+
+
+def normalize_amount(row, pattern, col1, col2=None):
+    """Normalize amount based on detected pattern."""
+    try:
+        if pattern == 'drcr':
+            drcr_value = str(row[col1]).strip() if not pd.isna(row[col1]) else ''
+            # Normalize: uppercase and remove non-alphabet characters
+            drcr_value = re.sub(r'[^A-Z]', '', drcr_value.upper())
+            amount_value = row[col2]
+            
+            if pd.isna(amount_value):
+                return None
+            
+            amount_value = float(amount_value)
+            
+            if drcr_value in ['DB', 'DR', 'D', 'DEBIT', 'WITHDRAWAL', 'W']:
+                return -abs(amount_value)
+            elif drcr_value in ['CR', 'C', 'CREDIT', 'DEPOSIT', 'DEP']:
+                return abs(amount_value)
+            else:
+                return None
+        
+        elif pattern == 'debit_credit':
+            debit_val = row[col1] if not pd.isna(row[col1]) else 0
+            credit_val = row[col2] if not pd.isna(row[col2]) else 0
+            
+            try:
+                debit_val = float(debit_val) if debit_val else 0
+                credit_val = float(credit_val) if credit_val else 0
+            except (ValueError, TypeError):
+                return None
+            
+            return credit_val - debit_val
+        
+        elif pattern == 'signed':
+            amount_value = row[col1]
+            
+            if pd.isna(amount_value):
+                return None
+            
+            return float(amount_value)
+        
+    except (ValueError, TypeError, KeyError):
+        return None
+    
+    return None
 
 
 def load_csv_to_db(csv_path, db_path):
     """
     Load bank statement CSV into a session-specific SQLite database.
-    
-    Supports various CSV formats from different banks and open banking providers.
-    Handles case-insensitive column names and multiple amount representations.
+    Auto-detects column mappings and normalizes data.
     
     Args:
         csv_path: Path to the CSV file to load
         db_path: Path where the SQLite database should be created
         
     Returns:
-        int: Number of transactions loaded
+        tuple: (transactions_loaded, mapping_info)
         
     Raises:
         FileNotFoundError: If CSV file doesn't exist
@@ -27,85 +157,31 @@ def load_csv_to_db(csv_path, db_path):
     except FileNotFoundError:
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     except Exception as e:
-        raise ValueError(f"Failed to read CSV file: {str(e)}")
+        raise ValueError(f"Failed to parse CSV file: {str(e)}")
     
     if df.empty:
-        raise ValueError("CSV file is empty")
+        raise ValueError("CSV file is empty or contains no data rows.")
     
-    # Normalize column names to lowercase for case-insensitive matching
-    df.columns = df.columns.str.strip().str.lower()
+    # Detect columns
+    date_col = detect_date_column(df.columns)
+    desc_col = detect_description_column(df.columns)
+    amount_pattern_info = detect_amount_pattern(df.columns)
     
-    # Detect date column
-    date_col = None
-    for col_name in ['date', 'transaction_date', 'txn_date', 'transaction date', 'txndate']:
-        if col_name in df.columns:
-            date_col = col_name
-            break
+    pattern = amount_pattern_info[0]
     
-    if not date_col:
-        raise ValueError("Unsupported CSV format. Expected date, description, and amount fields.")
+    if pattern == 'drcr':
+        drcr_col = amount_pattern_info[1]
+        amount_col = amount_pattern_info[2]
+        pattern_desc = f"DrCr ({drcr_col} + {amount_col})"
+    elif pattern == 'debit_credit':
+        debit_col = amount_pattern_info[1]
+        credit_col = amount_pattern_info[2]
+        pattern_desc = f"Debit/Credit ({debit_col} + {credit_col})"
+    else:
+        amount_col = amount_pattern_info[1]
+        pattern_desc = f"Signed Amount ({amount_col})"
     
-    # Detect description column
-    desc_col = None
-    for col_name in ['name', 'description', 'narration', 'merchant', 'details', 'particulars']:
-        if col_name in df.columns:
-            desc_col = col_name
-            break
     
-    if not desc_col:
-        raise ValueError("Unsupported CSV format. Expected date, description, and amount fields.")
-    
-    # Detect amount representation
-    # Option 1: DrCr column with amount
-    # Option 2: Separate debit and credit columns
-    # Option 3: Single signed amount column
-    
-    amount_mode = None
-    drcr_col = None
-    amount_col = None
-    debit_col = None
-    credit_col = None
-    
-    # Check for DrCr column
-    for col_name in ['drcr', 'dr/cr', 'type', 'transaction_type', 'txn_type']:
-        if col_name in df.columns:
-            drcr_col = col_name
-            # Find corresponding amount column
-            for amt_name in ['amount', 'amt', 'value', 'transaction_amount']:
-                if amt_name in df.columns:
-                    amount_col = amt_name
-                    amount_mode = 'drcr'
-                    break
-            if amount_mode:
-                break
-    
-    # Check for separate debit/credit columns
-    if not amount_mode:
-        for debit_name in ['debit', 'debit_amount', 'withdrawal', 'dr']:
-            if debit_name in df.columns:
-                debit_col = debit_name
-                break
-        
-        for credit_name in ['credit', 'credit_amount', 'deposit', 'cr']:
-            if credit_name in df.columns:
-                credit_col = credit_name
-                break
-        
-        if debit_col and credit_col:
-            amount_mode = 'debit_credit'
-    
-    # Check for single signed amount column
-    if not amount_mode:
-        for amt_name in ['amount', 'amt', 'value', 'transaction_amount', 'balance']:
-            if amt_name in df.columns:
-                amount_col = amt_name
-                amount_mode = 'signed'
-                break
-    
-    if not amount_mode:
-        raise ValueError("Unsupported CSV format. Expected date, description, and amount fields.")
-    
-    print(f"[CSV Loader] Detected columns - Date: {date_col}, Description: {desc_col}, Amount mode: {amount_mode}")
     
     # Connect to SQLite database
     conn = sqlite3.connect(db_path)
@@ -145,59 +221,13 @@ def load_csv_to_db(csv_path, db_path):
                 else:
                     description = str(description).strip()
                 
-                # Calculate amount based on detected mode
-                amount = None
-                
-                if amount_mode == 'drcr':
-                    # DrCr column with amount
-                    drcr_value = str(row[drcr_col]).strip().upper() if not pd.isna(row[drcr_col]) else ''
-                    amt_value = row[amount_col]
-                    
-                    if pd.isna(amt_value):
-                        rows_skipped += 1
-                        continue
-                    
-                    amt_value = float(amt_value)
-                    
-                    # Check for debit indicators
-                    if drcr_value in ['DB', 'D', 'DR', 'DEBIT', 'WITHDRAWAL']:
-                        amount = -abs(amt_value)
-                    # Check for credit indicators
-                    elif drcr_value in ['CR', 'C', 'CREDIT', 'DEPOSIT']:
-                        amount = abs(amt_value)
-                    else:
-                        # If unclear, skip row
-                        rows_skipped += 1
-                        continue
-                
-                elif amount_mode == 'debit_credit':
-                    # Separate debit and credit columns
-                    debit_val = row[debit_col] if not pd.isna(row[debit_col]) else 0
-                    credit_val = row[credit_col] if not pd.isna(row[credit_col]) else 0
-                    
-                    try:
-                        debit_val = float(debit_val) if debit_val else 0
-                        credit_val = float(credit_val) if credit_val else 0
-                    except (ValueError, TypeError):
-                        rows_skipped += 1
-                        continue
-                    
-                    # Debit is negative, credit is positive
-                    amount = credit_val - debit_val
-                
-                elif amount_mode == 'signed':
-                    # Single signed amount column
-                    amt_value = row[amount_col]
-                    
-                    if pd.isna(amt_value):
-                        rows_skipped += 1
-                        continue
-                    
-                    try:
-                        amount = float(amt_value)
-                    except (ValueError, TypeError):
-                        rows_skipped += 1
-                        continue
+                # Calculate amount
+                if pattern == 'drcr':
+                    amount = normalize_amount(row, 'drcr', drcr_col, amount_col)
+                elif pattern == 'debit_credit':
+                    amount = normalize_amount(row, 'debit_credit', debit_col, credit_col)
+                else:
+                    amount = normalize_amount(row, 'signed', amount_col)
                 
                 if amount is None:
                     rows_skipped += 1
@@ -210,27 +240,28 @@ def load_csv_to_db(csv_path, db_path):
                 )
                 rows_inserted += 1
                 
-            except Exception as e:
-                # Skip problematic rows instead of crashing
+            except Exception:
                 rows_skipped += 1
                 continue
         
         # Commit the transaction
         conn.commit()
         
-        if rows_skipped > 0:
-            print(f"[CSV Loader] Skipped {rows_skipped} rows due to parsing errors")
-        
         if rows_inserted == 0:
-            raise ValueError("No valid transactions found in CSV file")
+            raise ValueError("No valid transactions found in CSV file.")
         
-        return rows_inserted
+        mapping_info = {
+            'date_column': date_col,
+            'description_column': desc_col,
+            'amount_pattern': pattern_desc,
+            'rows_skipped': rows_skipped
+        }
+        
+        return rows_inserted, mapping_info
         
     except Exception as e:
-        # Rollback on error
         conn.rollback()
-        raise
+        raise ValueError("Failed to process CSV rows due to invalid data.")
         
     finally:
-        # Always close the connection
         conn.close()
