@@ -5,7 +5,7 @@ import pandas as pd
 # API Base URL
 API_BASE_URL = st.secrets.get(
     "API_BASE_URL",
-    "http://localhost:5000"
+    "https://smartspend-xneu.onrender.com"
 )
 
 # Page configuration
