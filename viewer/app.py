@@ -24,7 +24,7 @@ st.header("📅 Recurring Subscriptions")
 
 try:
     # Call subscriptions API
-    response = requests.get(f"{API_BASE_URL}/subscriptions", timeout=5)
+    response = requests.get(f"{API_BASE_URL}/subscriptions", timeout=60)
     
     if response.status_code == 200:
         data = response.json()
@@ -72,7 +72,7 @@ st.header("📊 Overspending Analysis")
 
 try:
     # Call overspending API
-    response = requests.get(f"{API_BASE_URL}/overspending", timeout=5)
+    response = requests.get(f"{API_BASE_URL}/overspending", timeout=60)
     
     if response.status_code == 200:
         data = response.json()
