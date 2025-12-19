@@ -1,3 +1,11 @@
+"""
+SmartSpend API - Flask REST API for bank statement analytics
+
+Copyright (c) 2024 Shantanu (shan3520)
+Original Repository: https://github.com/shan3520/smartspend
+License: MIT
+"""
+
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import RequestEntityTooLarge
 import sys

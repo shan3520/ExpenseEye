@@ -1,3 +1,11 @@
+"""
+SmartSpend CSV Auto-Mapper - Intelligent CSV parser for bank statements
+
+Copyright (c) 2024 Shantanu (shan3520)
+Original Repository: https://github.com/shan3520/smartspend
+License: MIT
+"""
+
 import sqlite3
 import pandas as pd
 import re
