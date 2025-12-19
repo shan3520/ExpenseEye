@@ -114,13 +114,24 @@ def normalize_amount(row, pattern, col1, col2=None):
                 return None
         
         elif pattern == 'debit_credit':
-            debit_val = row[col1] if not pd.isna(row[col1]) else 0
-            credit_val = row[col2] if not pd.isna(row[col2]) else 0
+            # Get values and handle both NaN and empty strings/whitespace
+            debit_val = row[col1]
+            credit_val = row[col2]
+            
+            # Treat NaN, empty string, or whitespace as 0
+            if pd.isna(debit_val) or (isinstance(debit_val, str) and debit_val.strip() == ''):
+                debit_val = 0
+            if pd.isna(credit_val) or (isinstance(credit_val, str) and credit_val.strip() == ''):
+                credit_val = 0
             
             try:
-                debit_val = float(debit_val) if debit_val else 0
-                credit_val = float(credit_val) if credit_val else 0
+                debit_val = float(debit_val)
+                credit_val = float(credit_val)
             except (ValueError, TypeError):
+                return None
+            
+            # If both are 0, skip this row
+            if debit_val == 0 and credit_val == 0:
                 return None
             
             return credit_val - debit_val
