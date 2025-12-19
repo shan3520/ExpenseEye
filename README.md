@@ -2,6 +2,10 @@
 
 > Privacy-first bank statement analyzer with intelligent subscription detection and overspending alerts
 
+**Copyright © 2024 Shantanu (shan3520). All rights reserved.**  
+**Original Author:** [Shantanu](https://github.com/shan3520)  
+**Repository:** [github.com/shan3520/smartspend](https://github.com/shan3520/smartspend)
+
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.29+-red.svg)](https://streamlit.io/)
