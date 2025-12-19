@@ -3,7 +3,12 @@ __pycache__/
 .env
 *.db
 *.csv
+*.xlsx
 test_data/
 sample_templates/
 test_csv_formats.py
 diagnose_csv.py
+validate_accuracy.py
+quick_validate.py
+simple_validate.py
+test_load.py
