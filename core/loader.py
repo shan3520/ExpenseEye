@@ -25,7 +25,7 @@ def detect_date_column(columns):
 
 
 def detect_description_column(columns):
-    """Detect description column from CSV headers."""
+    """Detect description column from CSV headers. Returns None if not found."""
     aliases = ['description', 'name', 'narration', 'merchant', 'details', 'particulars', 'remarks']
     normalized = {normalize_column_name(col): col for col in columns}
     
@@ -33,9 +33,8 @@ def detect_description_column(columns):
         if alias in normalized:
             return normalized[alias]
     
-    # Show what columns were actually found
-    available_cols = ', '.join(columns[:10])
-    raise ValueError(f"Could not identify description column. Your CSV has: [{available_cols}]. Expected one of: description, name, narration, merchant, details, particulars, remarks.")
+    # Description is optional - return None if not found
+    return None
 
 
 def detect_amount_pattern(columns):
@@ -257,12 +256,15 @@ def load_csv_to_db(csv_path, db_path):
                     continue
                 txn_date = txn_date.date()
                 
-                # Get description
-                description = row[desc_col]
-                if pd.isna(description):
-                    description = 'UNKNOWN'
+                # Get description (use placeholder if column doesn't exist)
+                if desc_col:
+                    description = row[desc_col]
+                    if pd.isna(description):
+                        description = 'UNKNOWN'
+                    else:
+                        description = str(description).strip()
                 else:
-                    description = str(description).strip()
+                    description = 'TRANSACTION'
                 
                 # Calculate amount
                 if pattern == 'drcr':
@@ -295,7 +297,7 @@ def load_csv_to_db(csv_path, db_path):
         
         mapping_info = {
             'date_column': date_col,
-            'description_column': desc_col,
+            'description_column': desc_col if desc_col else 'None (using TRANSACTION placeholder)',
             'amount_pattern': pattern_desc,
             'rows_skipped': rows_skipped
         }
