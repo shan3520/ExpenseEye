@@ -173,6 +173,64 @@ def find_header_row(csv_path):
         return 0
 
 
+def detect_date_format(df, date_col):
+    """
+    Auto-detect if dates are in DD/MM/YYYY or MM/DD/YYYY format.
+    Returns True if dayfirst (DD/MM/YYYY), False if monthfirst (MM/DD/YYYY).
+    """
+    # Sample first 10 non-null dates
+    sample_dates = df[date_col].dropna().head(10)
+    
+    if len(sample_dates) == 0:
+        return True  # Default to DD/MM/YYYY (international standard)
+    
+    # Try parsing with dayfirst=True and dayfirst=False
+    # Count how many parse successfully with each method
+    dayfirst_success = 0
+    monthfirst_success = 0
+    
+    for date_str in sample_dates:
+        # Try dayfirst (DD/MM/YYYY)
+        try:
+            parsed = pd.to_datetime(date_str, dayfirst=True, errors='coerce')
+            if not pd.isna(parsed):
+                dayfirst_success += 1
+        except:
+            pass
+        
+        # Try monthfirst (MM/DD/YYYY)
+        try:
+            parsed = pd.to_datetime(date_str, dayfirst=False, errors='coerce')
+            if not pd.isna(parsed):
+                monthfirst_success += 1
+        except:
+            pass
+    
+    # If both work equally, check for ambiguous dates
+    # Look for dates where day > 12 (can't be month)
+    for date_str in sample_dates:
+        date_str = str(date_str).strip()
+        parts = date_str.replace('-', '/').split('/')
+        
+        if len(parts) >= 3:
+            try:
+                first_part = int(parts[0])
+                second_part = int(parts[1])
+                
+                # If first part > 12, it must be day (DD/MM/YYYY)
+                if first_part > 12:
+                    return True
+                
+                # If second part > 12, it must be day (MM/DD/YYYY)
+                if second_part > 12:
+                    return False
+            except:
+                continue
+    
+    # Default to DD/MM/YYYY (international standard used by most countries)
+    return True
+
+
 def load_csv_to_db(csv_path, db_path):
     """
     Load bank statement CSV into a session-specific SQLite database.
@@ -208,6 +266,11 @@ def load_csv_to_db(csv_path, db_path):
     date_col = detect_date_column(df.columns)
     desc_col = detect_description_column(df.columns)
     amount_pattern_info = detect_amount_pattern(df.columns)
+    
+    # Auto-detect date format
+    dayfirst = detect_date_format(df, date_col)
+    date_format_type = "DD/MM/YYYY" if dayfirst else "MM/DD/YYYY"
+    print(f"[CSV Auto-Mapper] Detected date format: {date_format_type}")
     
     pattern = amount_pattern_info[0]
     
@@ -249,8 +312,8 @@ def load_csv_to_db(csv_path, db_path):
         
         for index, row in df.iterrows():
             try:
-                # Parse transaction date (support DD/MM/YYYY format)
-                txn_date = pd.to_datetime(row[date_col], errors='coerce', dayfirst=True)
+                # Parse transaction date with auto-detected format
+                txn_date = pd.to_datetime(row[date_col], errors='coerce', dayfirst=dayfirst)
                 if pd.isna(txn_date):
                     rows_skipped += 1
                     continue
