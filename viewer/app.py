@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
-st.write("API BASE URL:", API_BASE_URL)
+
 # API Base URL
 try:
     API_BASE_URL = st.secrets["API_BASE_URL"]
