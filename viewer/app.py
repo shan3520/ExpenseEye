@@ -65,7 +65,13 @@ if st.button("Analyze", type="primary", disabled=(uploaded_file is None)):
                 else:
                     st.error(f"Upload failed: {data.get('error', 'Unknown error')}")
             else:
-                st.error(f"Upload failed with status {response.status_code}")
+                # Try to get error message from response
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('error', f'Status {response.status_code}')
+                    st.error(f"❌ Upload failed: {error_msg}")
+                except:
+                    st.error(f"❌ Upload failed with status {response.status_code}")
                 
         except requests.exceptions.ConnectionError:
             st.error("❌ Cannot connect to API. Make sure the backend is running.")
