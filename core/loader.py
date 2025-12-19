@@ -19,7 +19,9 @@ def detect_date_column(columns):
         if alias in normalized:
             return normalized[alias]
     
-    raise ValueError("Unsupported CSV format. Could not identify date column. Expected one of: date, transaction_date, txn_date, posting_date, value_date.")
+    # Show what columns were actually found
+    available_cols = ', '.join(columns[:10])  # Show first 10 columns
+    raise ValueError(f"Could not identify date column. Your CSV has: [{available_cols}]. Expected one of: date, transaction_date, txn_date, posting_date, value_date.")
 
 
 def detect_description_column(columns):
@@ -31,7 +33,9 @@ def detect_description_column(columns):
         if alias in normalized:
             return normalized[alias]
     
-    raise ValueError("Unsupported CSV format. Could not identify description column. Expected one of: description, name, narration, merchant, details, particulars, remarks.")
+    # Show what columns were actually found
+    available_cols = ', '.join(columns[:10])
+    raise ValueError(f"Could not identify description column. Your CSV has: [{available_cols}]. Expected one of: description, name, narration, merchant, details, particulars, remarks.")
 
 
 def detect_amount_pattern(columns):
@@ -84,7 +88,9 @@ def detect_amount_pattern(columns):
         if alias in normalized:
             return ('signed', normalized[alias])
     
-    raise ValueError("Unsupported CSV format. Could not identify amount columns. Expected one of: (1) DrCr + Amount columns, (2) Debit + Credit columns, or (3) signed Amount column.")
+    # Show what columns were actually found
+    available_cols = ', '.join(columns[:10])
+    raise ValueError(f"Could not identify amount columns. Your CSV has: [{available_cols}]. Expected one of: (1) DrCr + Amount, (2) Debit + Credit columns, or (3) signed Amount column.")
 
 
 def normalize_amount(row, pattern, col1, col2=None):
@@ -259,9 +265,17 @@ def load_csv_to_db(csv_path, db_path):
         
         return rows_inserted, mapping_info
         
+    except ValueError as ve:
+        # Re-raise ValueError with original message
+        conn.rollback()
+        raise ve
     except Exception as e:
         conn.rollback()
-        raise ValueError("Failed to process CSV rows due to invalid data.")
+        # Log the actual error for debugging
+        print(f"[CSV Loader Error] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise ValueError(f"Failed to process CSV file. Error: {str(e)}")
         
     finally:
         conn.close()
