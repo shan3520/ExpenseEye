@@ -140,6 +140,40 @@ def normalize_amount(row, pattern, col1, col2=None):
     return None
 
 
+def find_header_row(csv_path):
+    """
+    Find the actual header row in a CSV that may have metadata rows at the top.
+    Returns the row number where the actual headers are.
+    """
+    # Try reading first 20 rows to find headers
+    try:
+        # Read without assuming headers
+        df_preview = pd.read_csv(csv_path, nrows=20, header=None)
+        
+        # Look for rows that contain common column keywords
+        date_keywords = ['date', 'transaction', 'txn', 'posting', 'value']
+        desc_keywords = ['description', 'name', 'narration', 'merchant', 'details', 'particulars']
+        amount_keywords = ['amount', 'debit', 'credit', 'balance', 'value', 'withdrawal', 'deposit']
+        
+        for idx, row in df_preview.iterrows():
+            # Convert row to lowercase strings
+            row_str = [str(val).lower().strip() for val in row if pd.notna(val)]
+            
+            # Check if this row contains typical column headers
+            has_date = any(keyword in ' '.join(row_str) for keyword in date_keywords)
+            has_desc = any(keyword in ' '.join(row_str) for keyword in desc_keywords)
+            has_amount = any(keyword in ' '.join(row_str) for keyword in amount_keywords)
+            
+            # If we found at least 2 of the 3 required column types, this is likely the header
+            if sum([has_date, has_desc, has_amount]) >= 2:
+                return idx
+        
+        # If no header found, assume first row
+        return 0
+    except:
+        return 0
+
+
 def load_csv_to_db(csv_path, db_path):
     """
     Load bank statement CSV into a session-specific SQLite database.
@@ -157,9 +191,12 @@ def load_csv_to_db(csv_path, db_path):
         ValueError: If CSV format cannot be parsed
         sqlite3.Error: If database operations fail
     """
-    # Read CSV file
+    # Find the actual header row
+    header_row = find_header_row(csv_path)
+    
+    # Read CSV file with detected header row
     try:
-        df = pd.read_csv(csv_path)
+        df = pd.read_csv(csv_path, header=header_row)
     except FileNotFoundError:
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     except Exception as e:
