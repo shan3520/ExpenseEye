@@ -36,6 +36,54 @@ def handle_file_too_large(e):
     }), 400
 
 
+@app.route('/preview-csv', methods=['POST'])
+def preview_csv():
+    """
+    Preview CSV structure without processing.
+    Helps diagnose upload issues.
+    """
+    if 'file' not in request.files:
+        return jsonify({"success": False, "error": "No file provided"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"success": False, "error": "No file selected"}), 400
+    
+    try:
+        import pandas as pd
+        from core.loader import find_header_row
+        
+        # Save to temp location
+        temp_path = os.path.join(tempfile.gettempdir(), f"preview_{uuid.uuid4()}.csv")
+        file.save(temp_path)
+        
+        # Find header row
+        header_row = find_header_row(temp_path)
+        
+        # Read CSV
+        df = pd.read_csv(temp_path, header=header_row, nrows=5)
+        
+        # Clean up
+        os.remove(temp_path)
+        
+        return jsonify({
+            "success": True,
+            "header_row": header_row,
+            "columns": list(df.columns),
+            "sample_rows": df.head().to_dict('records'),
+            "total_columns": len(df.columns)
+        })
+        
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route('/upload', methods=['POST'])
 def upload():
     """

@@ -249,8 +249,8 @@ def load_csv_to_db(csv_path, db_path):
         
         for index, row in df.iterrows():
             try:
-                # Parse transaction date
-                txn_date = pd.to_datetime(row[date_col], errors='coerce')
+                # Parse transaction date (support DD/MM/YYYY format)
+                txn_date = pd.to_datetime(row[date_col], errors='coerce', dayfirst=True)
                 if pd.isna(txn_date):
                     rows_skipped += 1
                     continue
@@ -275,6 +275,7 @@ def load_csv_to_db(csv_path, db_path):
                     amount = normalize_amount(row, 'signed', amount_col)
                 
                 if amount is None:
+                    print(f"[CSV Loader] Skipping row {index}: Invalid amount")
                     rows_skipped += 1
                     continue
                 
@@ -285,7 +286,8 @@ def load_csv_to_db(csv_path, db_path):
                 )
                 rows_inserted += 1
                 
-            except Exception:
+            except Exception as e:
+                print(f"[CSV Loader] Skipping row {index}: {str(e)}")
                 rows_skipped += 1
                 continue
         
