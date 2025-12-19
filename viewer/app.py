@@ -60,8 +60,21 @@ if st.button("Analyze", type="primary", disabled=(uploaded_file is None)):
                     # Store session_id
                     st.session_state['session_id'] = data['session_id']
                     
-                    # Show success message
+                    # Show success message with mapping info
                     st.success(f"✅ Uploaded successfully! Loaded {data['transactions_loaded']} transactions.")
+                    
+                    # Show detected format info
+                    if 'mapping_info' in data:
+                        mapping = data['mapping_info']
+                        with st.expander("📋 Detected CSV Format", expanded=False):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.write(f"**Date Column:** `{mapping.get('date_column', 'N/A')}`")
+                                st.write(f"**Description Column:** `{mapping.get('description_column', 'N/A')}`")
+                            with col2:
+                                st.write(f"**Amount Pattern:** `{mapping.get('amount_pattern', 'N/A')}`")
+                                if mapping.get('rows_skipped', 0) > 0:
+                                    st.warning(f"⚠️ Skipped {mapping['rows_skipped']} invalid rows")
                 else:
                     st.error(f"Upload failed: {data.get('error', 'Unknown error')}")
             else:
