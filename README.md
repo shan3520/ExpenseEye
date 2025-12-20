@@ -337,4 +337,4 @@ For issues, questions, or suggestions:
 
 ---
 
-**Made with ❤️ for privacy-conscious individuals who want to understand their spending without compromising their data.**
+**Made for privacy-conscious individuals who want to understand their spending without compromising their data.**
