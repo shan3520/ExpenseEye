@@ -1,8 +1,8 @@
 """
-SmartSpend API - Flask REST API for bank statement analytics
+ExpenseEye API - Flask REST API for bank statement analytics
 
 Copyright (c) 2024 Shantanu (shan3520)
-Original Repository: https://github.com/shan3520/smartspend
+Original Repository: https://github.com/shan3520/expenseeye
 License: MIT
 """
 
@@ -12,6 +12,12 @@ import sys
 import os
 import uuid
 import tempfile
+
+# Unique implementation identifier - DO NOT REMOVE
+# This code is part of ExpenseEye by Shantanu (shan3520)
+# Original: https://github.com/shan3520/expenseeye
+_EXPENSEEYE_API_VERSION = "shan3520-expenseeye-api-v1.0-20241219"
+_ORIGINAL_AUTHOR = "Shantanu (shan3520)"
 
 # Add parent directory to path to import core modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,7 +32,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 # Database path (absolute path for deployment safety)
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "smartspend.db")
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "expenseeye.db")
 
 
 @app.route('/health', methods=['GET'])
@@ -134,7 +140,7 @@ def upload():
         session_id = str(uuid.uuid4())
         
         # Create session-specific database path
-        db_path = os.path.join(tempfile.gettempdir(), f"smartspend_{session_id}.db")
+        db_path = os.path.join(tempfile.gettempdir(), f"expenseeye_{session_id}.db")
         
         # Save uploaded file to temporary location
         temp_csv_path = os.path.join(tempfile.gettempdir(), f"upload_{session_id}.csv")
@@ -205,7 +211,7 @@ def subscriptions():
         }), 400
     
     # Construct session-specific database path
-    db_path = os.path.join(tempfile.gettempdir(), f"smartspend_{session_id}.db")
+    db_path = os.path.join(tempfile.gettempdir(), f"expenseeye_{session_id}.db")
     
     # Check if session database exists
     if not os.path.exists(db_path):
@@ -246,7 +252,7 @@ def overspending():
         }), 400
     
     # Construct session-specific database path
-    db_path = os.path.join(tempfile.gettempdir(), f"smartspend_{session_id}.db")
+    db_path = os.path.join(tempfile.gettempdir(), f"expenseeye_{session_id}.db")
     
     # Check if session database exists
     if not os.path.exists(db_path):
@@ -279,7 +285,7 @@ def overspending():
 
 
 if __name__ == '__main__':
-    print("Starting SmartSpend API...")
+    print("Starting ExpenseEye API...")
     print("Available endpoints:")
     print("  GET  /health")
     print("  POST /upload")

@@ -1,10 +1,10 @@
-# SmartSpend - Personal Finance Analytics
+# ExpenseEye - Personal Finance Analytics
 
 > Privacy-first bank statement analyzer with intelligent subscription detection and overspending alerts
 
 **Copyright © 2024 Shantanu (shan3520). All rights reserved.**  
 **Original Author:** [Shantanu](https://github.com/shan3520)  
-**Repository:** [github.com/shan3520/smartspend](https://github.com/shan3520/smartspend)
+**Repository:** [github.com/shan3520/expenseeye](https://github.com/shan3520/expenseeye)
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
@@ -13,7 +13,7 @@
 
 ## Overview
 
-SmartSpend is a privacy-first financial analytics platform that helps you understand your spending patterns without sharing your data with third parties. Upload your bank statement CSV, and get instant insights into recurring subscriptions and overspending months.
+ExpenseEye is a privacy-first financial analytics platform that helps you understand your spending patterns without sharing your data with third parties. Upload your bank statement CSV, and get instant insights into recurring subscriptions and overspending months.
 
 **Key Features:**
 - 🔒 **Privacy-First**: All processing happens on your server - no data sharing
@@ -26,7 +26,7 @@ SmartSpend is a privacy-first financial analytics platform that helps you unders
 ## Architecture
 
 ```
-smartspend/
+expenseeye/
 ├── api/              # Flask REST API backend
 │   └── app.py        # API endpoints
 ├── core/             # Business logic modules
@@ -48,8 +48,8 @@ smartspend/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/shan3520/smartspend.git
-cd smartspend
+git clone https://github.com/shan3520/expenseeye.git
+cd expenseeye
 ```
 
 2. **Install dependencies**
@@ -94,7 +94,7 @@ streamlit run viewer/app.py
 
 ## Supported CSV Formats
 
-SmartSpend automatically detects and handles multiple CSV formats:
+ExpenseEye automatically detects and handles multiple CSV formats:
 
 ### Date Columns
 - `Date`, `Transaction Date`, `Txn Date`, `Posting Date`, `Value Date`
@@ -332,7 +332,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For issues, questions, or suggestions:
-- Open an issue on [GitHub](https://github.com/shan3520/smartspend/issues)
+- Open an issue on [GitHub](https://github.com/shan3520/expenseeye/issues)
 - Check existing documentation in `/docs`
 
 ---

@@ -1,6 +1,6 @@
-# Contributing to SmartSpend
+# Contributing to ExpenseEye
 
-Thank you for your interest in contributing to SmartSpend! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to ExpenseEye! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -86,8 +86,8 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 1. **Clone your fork:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/smartspend.git
-cd smartspend
+git clone https://github.com/YOUR_USERNAME/ExpenseEye.git
+cd ExpenseEye
 ```
 
 2. **Create virtual environment:**
@@ -225,7 +225,7 @@ When adding features, include tests:
 ## Project Structure
 
 ```
-smartspend/
+ExpenseEye/
 ├── api/                    # Backend API
 │   └── app.py             # Flask application
 ├── core/                   # Business logic
@@ -376,6 +376,6 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-**Thank you for contributing to SmartSpend!** 🎉
+**Thank you for contributing to ExpenseEye!** 🎉
 
 Your contributions help make financial analytics accessible and privacy-focused for everyone.

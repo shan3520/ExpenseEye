@@ -1,8 +1,8 @@
-# SmartSpend Architecture
+# ExpenseEye Architecture
 
 ## System Overview
 
-SmartSpend follows a **three-tier architecture** with clear separation of concerns:
+ExpenseEye follows a **three-tier architecture** with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -37,7 +37,7 @@ SmartSpend follows a **three-tier architecture** with clear separation of concer
                      │
 ┌────────────────────▼────────────────────────────────────────┐
 │                 SQLite Database (Ephemeral)                 │
-│                   /tmp/smartspend_{uuid}.db                 │
+│                   /tmp/ExpenseEye_{uuid}.db                 │
 │  - transactions table                                       │
 │  - Session-scoped                                           │
 │  - Auto-cleanup                                             │
@@ -247,7 +247,7 @@ CREATE TABLE transactions (
 ```
 
 **Session Isolation:**
-- Each upload creates a new database: `/tmp/smartspend_{uuid}.db`
+- Each upload creates a new database: `/tmp/ExpenseEye_{uuid}.db`
 - No cross-session data access
 - Automatic cleanup on session end
 
@@ -268,7 +268,7 @@ Flask validates file
     ↓
 Generate session UUID
     ↓
-Create temp database: /tmp/smartspend_{uuid}.db
+Create temp database: /tmp/ExpenseEye_{uuid}.db
     ↓
 Call load_csv_to_db()
     ↓
@@ -498,4 +498,4 @@ Streamlit displays results
 
 **Last Updated:** 2024-12-19  
 **Version:** 1.0.0  
-**Author:** SmartSpend Team
+**Author:** ExpenseEye Team

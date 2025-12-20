@@ -1,14 +1,22 @@
 """
-SmartSpend CSV Auto-Mapper - Intelligent CSV parser for bank statements
+ExpenseEye CSV Auto-Mapper - Intelligent CSV parser for bank statements
 
 Copyright (c) 2024 Shantanu (shan3520)
-Original Repository: https://github.com/shan3520/smartspend
+Original Repository: https://github.com/shan3520/expenseeye
 License: MIT
 """
 
 import sqlite3
 import pandas as pd
 import re
+
+# Unique implementation identifier - DO NOT REMOVE
+# This code is part of ExpenseEye by Shantanu (shan3520)
+# Original: https://github.com/shan3520/expenseeye
+# If you find this elsewhere, it's a derivative work
+_EXPENSEEYE_IMPLEMENTATION = "shan3520-expenseeye-csv-automapper-v1.0-20241219"
+_ORIGINAL_AUTHOR = "Shantanu (shan3520)"
+_ORIGINAL_REPO = "https://github.com/shan3520/expenseeye"
 
 
 def normalize_column_name(col):

@@ -2,7 +2,7 @@
 
 ## Overview
 
-SmartSpend uses a **two-service architecture**:
+ExpenseEye uses a **two-service architecture**:
 - **Backend API**: Deployed on Render
 - **Frontend UI**: Deployed on Streamlit Cloud
 
@@ -44,14 +44,14 @@ werkzeug==3.0.1
 2. **Click "New +" → "Web Service"**
 
 3. **Connect your GitHub repository:**
-   - Select "smartspend" repository
+   - Select "ExpenseEye" repository
    - Click "Connect"
 
 4. **Configure the service:**
 
 | Setting | Value |
 |---------|-------|
-| Name | `smartspend-api` |
+| Name | `ExpenseEye-api` |
 | Region | Choose closest to your users |
 | Branch | `main` |
 | Root Directory | (leave empty) |
@@ -77,7 +77,7 @@ werkzeug==3.0.1
 
 2. **Check logs** for:
 ```
-Starting SmartSpend API...
+Starting ExpenseEye API...
 Available endpoints:
   GET  /health
   POST /upload
@@ -95,7 +95,7 @@ Expected response:
 {"status": "ok"}
 ```
 
-4. **Copy your Render URL** (e.g., `https://smartspend-api.onrender.com`)
+4. **Copy your Render URL** (e.g., `https://ExpenseEye-api.onrender.com`)
 
 ---
 
@@ -135,10 +135,10 @@ API_BASE_URL = "https://your-render-app.onrender.com"
 
 | Setting | Value |
 |---------|-------|
-| Repository | `shan3520/smartspend` |
+| Repository | `shan3520/ExpenseEye` |
 | Branch | `main` |
 | Main file path | `viewer/app.py` |
-| App URL | `smartspend` (or custom) |
+| App URL | `ExpenseEye` (or custom) |
 
 4. **Add secrets (if using Option A):**
    - Click "Advanced settings"
@@ -153,7 +153,7 @@ API_BASE_URL = "https://your-render-app.onrender.com"
 
 1. **Wait for deployment** (1-2 minutes)
 
-2. **Access your app** at `https://smartspend.streamlit.app`
+2. **Access your app** at `https://ExpenseEye.streamlit.app`
 
 3. **Test CSV upload:**
    - Upload a sample CSV
@@ -172,7 +172,7 @@ If frontend and backend are on different domains, add CORS to `api/app.py`:
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins=["https://smartspend.streamlit.app"])
+CORS(app, origins=["https://ExpenseEye.streamlit.app"])
 ```
 
 Update `requirements.txt`:
@@ -442,7 +442,7 @@ After successful deployment:
 For deployment issues:
 - Render: https://render.com/docs
 - Streamlit: https://docs.streamlit.io/streamlit-cloud
-- GitHub Issues: https://github.com/shan3520/smartspend/issues
+- GitHub Issues: https://github.com/shan3520/ExpenseEye/issues
 
 ---
 

@@ -11,7 +11,7 @@ except:
 
 # Page configuration
 st.set_page_config(
-    page_title="SmartSpend Viewer",
+    page_title="ExpenseEye Viewer",
     page_icon="💰",
     layout="wide"
 )
@@ -21,7 +21,7 @@ if 'session_id' not in st.session_state:
     st.session_state['session_id'] = None
 
 # App title
-st.title("💰 SmartSpend Analytics Viewer")
+st.title("💰 ExpenseEye Analytics Viewer")
 st.markdown("---")
 
 # Upload Section
@@ -241,4 +241,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("SmartSpend Analytics Viewer - Privacy-first analytics with ephemeral storage")
+st.caption("ExpenseEye Analytics Viewer - Privacy-first analytics with ephemeral storage")

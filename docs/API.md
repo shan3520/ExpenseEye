@@ -87,7 +87,7 @@ curl -X POST https://your-app.onrender.com/upload \
 
 **Notes:**
 - Session ID is valid for the duration of the server session
-- Database is created in `/tmp/smartspend_{session_id}.db`
+- Database is created in `/tmp/ExpenseEye_{session_id}.db`
 - Automatically detects CSV format
 
 ---
@@ -300,7 +300,7 @@ All errors return JSON with this structure:
 
 ### Session Storage
 
-- **Location:** `/tmp/smartspend_{session_id}.db`
+- **Location:** `/tmp/ExpenseEye_{session_id}.db`
 - **Format:** SQLite database
 - **Cleanup:** Automatic on server restart (ephemeral storage)
 
