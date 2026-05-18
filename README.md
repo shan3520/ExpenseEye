@@ -2,7 +2,7 @@
 
 > Privacy-first bank statement analyzer with intelligent subscription detection and overspending alerts
 
-**Copyright © 2024 Shantanu (shan3520). All rights reserved.**  
+**Copyright © 2026 Shantanu (shan3520). All rights reserved.**  
 **Original Author:** [Shantanu](https://github.com/shan3520)  
 **Repository:** [github.com/shan3520/expenseeye](https://github.com/shan3520/expenseeye)
 
