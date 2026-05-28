@@ -12,3 +12,4 @@ validate_accuracy.py
 quick_validate.py
 simple_validate.py
 test_load.py
+*.log
