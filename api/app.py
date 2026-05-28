@@ -193,6 +193,15 @@ def upload():
         }), 500
 
 
+def is_valid_uuid(val):
+    """Check if the provided string is a valid UUID."""
+    try:
+        uuid.UUID(str(val))
+        return True
+    except ValueError:
+        return False
+
+
 @app.route('/subscriptions', methods=['GET'])
 def subscriptions():
     """
@@ -208,6 +217,13 @@ def subscriptions():
         return jsonify({
             "success": False,
             "error": "session_id query parameter is required"
+        }), 400
+
+    # Security: Validate session_id is a proper UUID to prevent path traversal
+    if not is_valid_uuid(session_id):
+        return jsonify({
+            "success": False,
+            "error": "Invalid session_id format"
         }), 400
     
     # Construct session-specific database path
@@ -249,6 +265,13 @@ def overspending():
         return jsonify({
             "success": False,
             "error": "session_id query parameter is required"
+        }), 400
+
+    # Security: Validate session_id is a proper UUID to prevent path traversal
+    if not is_valid_uuid(session_id):
+        return jsonify({
+            "success": False,
+            "error": "Invalid session_id format"
         }), 400
     
     # Construct session-specific database path
