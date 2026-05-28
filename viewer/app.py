@@ -38,7 +38,8 @@ uploaded_file = st.file_uploader(
 )
 
 # Analyze button
-if st.button("Analyze", type="primary", disabled=(uploaded_file is None)):
+button_help_text = "Click to analyze your transactions" if uploaded_file else "Upload a CSV file first to enable analysis"
+if st.button("Analyze", type="primary", disabled=(uploaded_file is None), help=button_help_text):
     with st.spinner("Uploading and processing..."):
         try:
             # Reset file pointer to beginning
@@ -136,7 +137,7 @@ if st.session_state.get('session_id'):
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 st.success(f"Found {len(subscriptions)} recurring subscription(s)")
             else:
-                st.info("No recurring subscriptions detected.")
+                st.info("No recurring subscriptions detected. Try uploading a longer statement for better detection.")
         elif response.status_code == 400:
             st.error("Session expired or invalid. Please upload your file again.")
             st.session_state['session_id'] = None
@@ -177,11 +178,11 @@ if st.session_state.get('session_id'):
                 # Display summary metrics
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Total Analyzed", summary.get("total_analyzed", 0))
+                    st.metric("Total Analyzed", summary.get("total_analyzed", 0), help="Number of months analyzed (excluding baseline months)")
                 with col2:
-                    st.metric("Overspending Months", summary.get("overspending_count", 0))
+                    st.metric("Overspending Months", summary.get("overspending_count", 0), help="Months where spending exceeded historical averages")
                 with col3:
-                    st.metric("Normal Months", summary.get("normal_count", 0))
+                    st.metric("Normal Months", summary.get("normal_count", 0), help="Months with typical spending patterns")
                 
                 st.markdown("###")
                 
@@ -221,7 +222,7 @@ if st.session_state.get('session_id'):
                         hide_index=True
                     )
                 else:
-                    st.info("No overspending data available.")
+                    st.info("No overspending data available. Requires at least 4 months of transaction history.")
             else:
                 st.error("API returned unsuccessful response")
         elif response.status_code == 400:
