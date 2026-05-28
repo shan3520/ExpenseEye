@@ -32,6 +32,10 @@ def detect_subscriptions(db_path="smartspend.db"):
     df = pd.read_sql_query(query, conn)
     conn.close()
     
+    # Vectorize datetime conversion instead of doing it per-group
+    # This prevents redundant parsing overhead inside the loop
+    df['txn_date'] = pd.to_datetime(df['txn_date'])
+
     # Group by description and amount
     grouped = df.groupby(['description', 'amount'])
     
@@ -43,14 +47,12 @@ def detect_subscriptions(db_path="smartspend.db"):
         if len(group) < 3:
             continue
         
-        # Convert dates to datetime
-        dates = pd.to_datetime(group['txn_date']).sort_values()
+        # Sort dates chronologically
+        dates = group['txn_date'].sort_values()
         
-        # Calculate day gaps between consecutive transactions
-        gaps = []
-        for i in range(1, len(dates)):
-            gap = (dates.iloc[i] - dates.iloc[i-1]).days
-            gaps.append(gap)
+        # Vectorize gap calculation using pandas .diff()
+        # This replaces an O(n) Python loop with a highly optimized C implementation
+        gaps = dates.diff().dt.days.dropna().tolist()
         
         # Ignore highly irregular patterns
         if max(gaps) - min(gaps) > 5:
