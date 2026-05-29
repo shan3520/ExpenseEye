@@ -8,7 +8,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.29+-red.svg)](https://streamlit.io/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646cff.svg)](https://vite.dev/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Overview
@@ -33,8 +34,9 @@ expenseeye/
 │   ├── loader.py     # CSV auto-mapper
 │   ├── subscriptions.py  # Subscription detection
 │   └── overspending.py   # Overspending analysis
-├── viewer/           # Streamlit frontend
-│   └── app.py        # UI application
+├── viewer/           # React + Vite + Tailwind frontend
+│   ├── src/          # Components, API client, types
+│   └── package.json  # Frontend dependencies
 └── requirements.txt  # Python dependencies
 ```
 
@@ -42,7 +44,8 @@ expenseeye/
 
 ### Prerequisites
 - Python 3.11+
-- pip
+- Node.js 20.19+ or 22.12+ (the frontend uses Vite 8)
+- pip and npm
 
 ### Installation
 
@@ -52,7 +55,7 @@ git clone https://github.com/shan3520/expenseeye.git
 cd expenseeye
 ```
 
-2. **Install dependencies**
+2. **Install backend dependencies**
 ```bash
 pip install -r requirements.txt
 ```
@@ -64,12 +67,16 @@ python api/app.py
 
 4. **Run the frontend (in a new terminal)**
 ```bash
-streamlit run viewer/app.py
+cd viewer
+npm install
+npm run dev
 ```
 
 5. **Access the application**
-- Frontend: http://localhost:8501
+- Frontend: http://localhost:5173
 - API: http://localhost:5000
+
+> The frontend reads the API URL from the `VITE_API_URL` env var (defaults to `http://localhost:5000`). Create `viewer/.env` with `VITE_API_URL=...` to point at a deployed backend.
 
 ## Deployment
 
@@ -81,16 +88,21 @@ streamlit run viewer/app.py
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `python api/app.py`
    - **Environment:** Python 3.11
+4. **Set environment variable** `CORS_ORIGINS` to your frontend origin, e.g.
+   `https://expenseeye.pages.dev` (comma-separated for multiple).
 
-### Frontend (Streamlit Cloud)
+### Frontend (Cloudflare Pages)
 
-1. **Deploy to [Streamlit Cloud](https://streamlit.io/cloud)**
-2. **Connect your GitHub repository**
-3. **Set the main file:** `viewer/app.py`
-4. **Add secret (if needed):**
-   ```toml
-   API_BASE_URL = "https://your-render-app.onrender.com"
-   ```
+1. **Create a new Pages project** on [Cloudflare Pages](https://pages.cloudflare.com) and connect your GitHub repository.
+2. **Configure the build:**
+   - **Root directory:** `viewer`
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+3. **Add environment variable:**
+   - `VITE_API_URL = https://your-render-app.onrender.com`
+4. **Deploy.** On every push to `main`, Cloudflare rebuilds automatically.
+
+> See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full step-by-step guide.
 
 ## Supported CSV Formats
 
@@ -243,16 +255,21 @@ Health check endpoint.
 ### Project Structure
 
 ```
-smartspend/
+expenseeye/
 ├── api/
-│   └── app.py                 # Flask API with session management
+│   └── app.py                 # Flask API with session management + CORS
 ├── core/
 │   ├── loader.py              # CSV auto-mapper with smart detection
 │   ├── subscriptions.py       # Subscription detection algorithm
 │   └── overspending.py        # Overspending analysis algorithm
 ├── viewer/
-│   ├── app.py                 # Streamlit UI
-│   └── requirements.txt       # Frontend dependencies
+│   ├── src/
+│   │   ├── App.tsx            # Root React component
+│   │   ├── components/        # FileUpload, SubscriptionsTable, OverspendingAnalysis
+│   │   ├── lib/               # axios API client + utils
+│   │   └── types/             # TypeScript interfaces
+│   ├── package.json           # Frontend dependencies
+│   └── vite.config.ts         # Vite config (@ alias → src)
 ├── requirements.txt           # Backend dependencies
 ├── .gitignore                 # Excludes test files and sensitive data
 └── README.md                  # This file
@@ -325,9 +342,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built with [Flask](https://flask.palletsprojects.com/) and [Streamlit](https://streamlit.io/)
+- Built with [Flask](https://flask.palletsprojects.com/) and [React](https://react.dev/) + [Vite](https://vite.dev/)
 - CSV parsing powered by [pandas](https://pandas.pydata.org/)
-- Deployed on [Render](https://render.com) and [Streamlit Cloud](https://streamlit.io/cloud)
+- Deployed on [Render](https://render.com) (API) and [Cloudflare Pages](https://pages.cloudflare.com) (frontend)
 
 ## Support
 

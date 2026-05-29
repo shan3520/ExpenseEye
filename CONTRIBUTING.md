@@ -109,7 +109,9 @@ python api/app.py
 
 5. **Run frontend (new terminal):**
 ```bash
-streamlit run viewer/app.py
+cd viewer
+npm install
+npm run dev
 ```
 
 ## Code Style Guidelines
@@ -232,8 +234,8 @@ ExpenseEye/
 │   ├── loader.py          # CSV auto-mapper
 │   ├── subscriptions.py   # Subscription detection
 │   └── overspending.py    # Overspending analysis
-├── viewer/                 # Frontend UI
-│   └── app.py             # Streamlit application
+├── viewer/                 # Frontend UI (React + Vite + Tailwind)
+│   └── src/               # Components, API client, types
 ├── docs/                   # Documentation
 │   ├── ARCHITECTURE.md    # System design
 │   ├── API.md             # API reference

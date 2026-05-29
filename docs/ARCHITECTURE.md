@@ -6,13 +6,13 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Streamlit Frontend                      │
-│                    (viewer/app.py)                          │
+│                React Frontend (Vite + Tailwind)             │
+│                       (viewer/src)                          │
 │  - File upload UI                                           │
 │  - Analytics visualization                                  │
 │  - Session management                                       │
 └────────────────────┬────────────────────────────────────────┘
-                     │ HTTP/REST
+                     │ HTTP/REST (axios, CORS-enabled)
                      │
 ┌────────────────────▼────────────────────────────────────────┐
 │                      Flask REST API                         │
@@ -46,9 +46,9 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 
 ## Component Details
 
-### 1. Frontend Layer (Streamlit)
+### 1. Frontend Layer (React)
 
-**File:** `viewer/app.py`
+**Location:** `viewer/src` (entry: `App.tsx`)
 
 **Responsibilities:**
 - User interface for CSV upload
@@ -63,9 +63,10 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 - Responsive design
 
 **Technology Stack:**
-- Streamlit 1.29+
-- Requests (HTTP client)
-- Pandas (data display)
+- React 19 + TypeScript
+- Vite 8 (build/dev server)
+- Tailwind CSS
+- axios (HTTP client)
 
 ### 2. API Layer (Flask)
 
@@ -262,7 +263,7 @@ CREATE TABLE transactions (
 ```
 User uploads CSV
     ↓
-Streamlit sends to /upload
+React frontend sends to /upload
     ↓
 Flask validates file
     ↓
@@ -280,7 +281,7 @@ Call load_csv_to_db()
     ↓
 Return session_id + mapping_info
     ↓
-Streamlit stores session_id
+React frontend stores session_id
     ↓
 Display success + format preview
 ```
@@ -290,7 +291,7 @@ Display success + format preview
 ```
 User clicks "Detect Subscriptions"
     ↓
-Streamlit calls /subscriptions?session_id={uuid}
+React frontend calls /subscriptions?session_id={uuid}
     ↓
 Flask retrieves session database
     ↓
@@ -304,7 +305,7 @@ Call detect_subscriptions(db_path)
     ↓
 Return subscription list
     ↓
-Streamlit displays results
+React frontend displays results
 ```
 
 ## Design Decisions
@@ -453,9 +454,9 @@ Streamlit displays results
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Streamlit Cloud                       │
-│                  (viewer/app.py)                        │
-│  - Static hosting                                       │
+│                  Cloudflare Pages                       │
+│                   (viewer/ → dist)                      │
+│  - Static hosting on global CDN                         │
 │  - Auto-scaling                                         │
 │  - HTTPS enabled                                        │
 └────────────────────┬────────────────────────────────────┘
@@ -475,10 +476,10 @@ Streamlit displays results
 
 **Backend (Render):**
 - `FLASK_ENV`: `production`
-- `MAX_CONTENT_LENGTH`: `10485760` (10MB)
+- `CORS_ORIGINS`: `https://expenseeye.pages.dev` (your Pages URL)
 
-**Frontend (Streamlit Cloud):**
-- `API_BASE_URL`: `https://your-api.onrender.com`
+**Frontend (Cloudflare Pages):**
+- `VITE_API_URL`: `https://your-api.onrender.com`
 
 ### Monitoring
 

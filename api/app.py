@@ -7,6 +7,7 @@ License: MIT
 """
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
 import sys
 import os
@@ -27,6 +28,17 @@ from core.overspending import detect_overspending
 from core.loader import load_csv_to_db
 
 app = Flask(__name__)
+
+# Enable CORS so the React frontend (served from a different origin) can reach
+# the API. Set CORS_ORIGINS to a comma-separated list of allowed origins in
+# production (e.g. "https://expenseeye.pages.dev"). Defaults to "*" since the
+# API is session-based and uses no cookies/credentials.
+_cors_origins = os.getenv('CORS_ORIGINS', '*')
+_allowed_origins = (
+    '*' if _cors_origins.strip() == '*'
+    else [o.strip() for o in _cors_origins.split(',') if o.strip()]
+)
+CORS(app, origins=_allowed_origins)
 
 # File size limit: 10 MB
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024

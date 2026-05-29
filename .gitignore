@@ -13,3 +13,9 @@ quick_validate.py
 simple_validate.py
 test_load.py
 *.log
+
+# Frontend (viewer/)
+node_modules/
+dist/
+.vite/
+*.local

@@ -3,8 +3,8 @@
 ## Overview
 
 ExpenseEye uses a **two-service architecture**:
-- **Backend API**: Deployed on Render
-- **Frontend UI**: Deployed on Streamlit Cloud
+- **Backend API**: Flask, deployed on Render
+- **Frontend UI**: React + Vite, deployed on Cloudflare Pages
 
 This guide walks through deploying both services from scratch.
 
@@ -14,7 +14,7 @@ This guide walks through deploying both services from scratch.
 
 - GitHub account
 - Render account (free tier available)
-- Streamlit Cloud account (free tier available)
+- Cloudflare account (free tier available)
 - Git installed locally
 
 ---
@@ -32,9 +32,10 @@ git push origin main
 
 2. **Verify `requirements.txt` exists in root:**
 ```txt
-flask==3.0.0
-pandas==2.1.3
-werkzeug==3.0.1
+flask
+flask-cors
+pandas
+numpy
 ```
 
 ### Step 2: Create Render Web Service
@@ -61,9 +62,10 @@ werkzeug==3.0.1
 
 5. **Set environment variables:**
    - Click "Advanced"
-   - Add environment variable:
-     - Key: `FLASK_ENV`
-     - Value: `production`
+   - Add environment variables:
+     - `FLASK_ENV` = `production`
+     - `CORS_ORIGINS` = your Cloudflare Pages URL, e.g. `https://expenseeye.pages.dev`
+       (comma-separated for multiple origins; defaults to `*` if unset)
 
 6. **Choose plan:**
    - Free tier is sufficient for testing
@@ -99,86 +101,80 @@ Expected response:
 
 ---
 
-## Part 2: Frontend Deployment (Streamlit Cloud)
+## Part 2: Frontend Deployment (Cloudflare Pages)
 
-### Step 1: Prepare Streamlit App
+The frontend is a React + Vite single-page app in `viewer/`. It reads the API
+base URL from the `VITE_API_URL` build-time environment variable.
 
-1. **Ensure `viewer/requirements.txt` exists:**
-```txt
-streamlit==1.29.0
-requests==2.31.0
-pandas==2.1.3
-```
+### Step 1: Create the Pages Project
 
-2. **Update API URL in `viewer/app.py`:**
+1. **Go to the [Cloudflare dashboard](https://dash.cloudflare.com/)** → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
 
-Option A: Use Streamlit secrets (recommended)
-```python
-# In viewer/app.py
-import streamlit as st
+2. **Select the `shan3520/ExpenseEye` repository** and click **Begin setup**.
 
-API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:5000")
-```
-
-Option B: Hardcode (not recommended for production)
-```python
-API_BASE_URL = "https://your-render-app.onrender.com"
-```
-
-### Step 2: Deploy to Streamlit Cloud
-
-1. **Go to [Streamlit Cloud](https://share.streamlit.io/)**
-
-2. **Click "New app"**
-
-3. **Configure deployment:**
+3. **Configure the build:**
 
 | Setting | Value |
 |---------|-------|
-| Repository | `shan3520/ExpenseEye` |
-| Branch | `main` |
-| Main file path | `viewer/app.py` |
-| App URL | `ExpenseEye` (or custom) |
+| Production branch | `main` |
+| Framework preset | `Vite` |
+| Root directory | `viewer` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
 
-4. **Add secrets (if using Option A):**
-   - Click "Advanced settings"
-   - Add to secrets:
-```toml
-API_BASE_URL = "https://your-render-app.onrender.com"
+### Step 2: Set Environment Variables
+
+Under **Settings → Environment variables**, add for the **Production** environment:
+
+```
+VITE_API_URL = https://your-render-app.onrender.com
 ```
 
-5. **Click "Deploy!"**
+> `VITE_API_URL` must be set **before** the build runs — Vite inlines it at
+> build time. After changing it, trigger a new deploy.
 
-### Step 3: Verify Deployment
+### Step 3: Deploy
 
-1. **Wait for deployment** (1-2 minutes)
+1. **Click "Save and Deploy".** Cloudflare installs deps, runs `npm run build`,
+   and serves `dist/`. The `viewer/public/_redirects` file routes all paths to
+   `index.html` for SPA behavior.
 
-2. **Access your app** at `https://ExpenseEye.streamlit.app`
+2. **Wait for the build** (1-2 minutes). Your app is live at
+   `https://<project>.pages.dev`.
 
-3. **Test CSV upload:**
-   - Upload a sample CSV
-   - Verify it processes successfully
-   - Check analytics display
+3. **Auto-deploys:** every push to `main` rebuilds automatically.
+
+### Step 4: Verify Deployment
+
+1. **Open** `https://<project>.pages.dev`.
+2. **Upload a sample CSV**, confirm it processes and analytics display.
+3. If requests fail with a CORS error in the browser console, make sure
+   `CORS_ORIGINS` on the Render backend matches your Pages URL exactly.
 
 ---
 
 ## Part 3: Post-Deployment Configuration
 
-### Enable CORS (if needed)
+### CORS (already configured)
 
-If frontend and backend are on different domains, add CORS to `api/app.py`:
+CORS is enabled in `api/app.py` via `flask-cors`. The allowed origins are
+controlled by the `CORS_ORIGINS` environment variable:
 
 ```python
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app, origins=["https://ExpenseEye.streamlit.app"])
+# api/app.py
+_cors_origins = os.getenv('CORS_ORIGINS', '*')
+CORS(app, origins=_allowed_origins)
 ```
 
-Update `requirements.txt`:
-```txt
-flask-cors==4.0.0
+Set `CORS_ORIGINS` on Render to your Cloudflare Pages URL (comma-separated for
+multiple), e.g.:
+
 ```
+CORS_ORIGINS=https://expenseeye.pages.dev
+```
+
+If unset, it defaults to `*` (acceptable here since the API uses no
+cookies/credentials, but pin it to your frontend origin for production).
 
 ### Set Up Custom Domain (Optional)
 
@@ -187,16 +183,21 @@ flask-cors==4.0.0
 2. Click "Custom Domain"
 3. Follow DNS configuration instructions
 
-**For Streamlit:**
-1. Upgrade to paid plan
-2. Configure custom domain in settings
+**For Cloudflare Pages:**
+1. Go to the Pages project → **Custom domains**
+2. Add your domain and follow the DNS instructions (free on any plan)
 
 ### Configure Environment-Specific Settings
 
-Create `.env` file for local development (add to `.gitignore`):
+For local backend development, create a `.env` (add to `.gitignore`):
 ```bash
 FLASK_ENV=development
-API_BASE_URL=http://localhost:5000
+CORS_ORIGINS=http://localhost:5173
+```
+
+For the frontend, create `viewer/.env`:
+```bash
+VITE_API_URL=http://localhost:5000
 ```
 
 ---
@@ -222,20 +223,19 @@ curl https://your-api.onrender.com/health
 2. Click "Logs" tab
 3. Filter by error level
 
-**Streamlit:**
-1. Go to app dashboard
-2. Click "Manage app"
-3. View logs in real-time
+**Cloudflare Pages:**
+1. Go to the Pages project
+2. Open **Deployments** → select a deployment → **View build log**
 
 ### Update Deployment
 
 **Automatic (recommended):**
 - Push to `main` branch
-- Render and Streamlit auto-deploy
+- Render and Cloudflare Pages auto-deploy
 
 **Manual:**
 - Render: Click "Manual Deploy" → "Deploy latest commit"
-- Streamlit: Click "Reboot app"
+- Cloudflare Pages: Open the latest deployment → "Retry deployment"
 
 ### Rollback
 
@@ -244,9 +244,9 @@ curl https://your-api.onrender.com/health
 2. Find previous successful deploy
 3. Click "Redeploy"
 
-**Streamlit:**
-1. Revert Git commit
-2. Push to trigger redeploy
+**Cloudflare Pages:**
+1. Open **Deployments**
+2. Find a previous successful build → "..." → **Rollback to this deployment**
 
 ---
 
@@ -262,11 +262,11 @@ curl https://your-api.onrender.com/health
 - Not needed for session-based architecture
 - Each request is independent
 
-### Frontend Scaling (Streamlit)
+### Frontend Scaling (Cloudflare Pages)
 
-- Streamlit Cloud auto-scales
+- Served as static assets from Cloudflare's global CDN
 - No configuration needed
-- Handles 1000s of concurrent users
+- Scales to millions of requests automatically
 
 ### Database Considerations
 
@@ -285,8 +285,8 @@ curl https://your-api.onrender.com/health
 
 ### Before Going Live
 
-- [ ] HTTPS enabled (automatic on Render/Streamlit)
-- [ ] API_BASE_URL uses HTTPS
+- [ ] HTTPS enabled (automatic on Render/Cloudflare Pages)
+- [ ] VITE_API_URL uses HTTPS
 - [ ] File size limits configured (10MB)
 - [ ] CORS properly configured
 - [ ] No secrets in code (use environment variables)
@@ -310,8 +310,8 @@ curl https://your-api.onrender.com/health
 ### Common Issues
 
 **Issue:** "Connection refused" from frontend
-- **Cause:** Wrong API_BASE_URL
-- **Fix:** Verify URL in Streamlit secrets
+- **Cause:** Wrong VITE_API_URL
+- **Fix:** Verify the `VITE_API_URL` env var in Cloudflare Pages, then redeploy (Vite inlines it at build time)
 
 **Issue:** "File too large" error
 - **Cause:** Exceeds 10MB limit
@@ -352,10 +352,10 @@ logging.basicConfig(level=logging.DEBUG)
 - Spins down after 15 min inactivity
 - Slower cold starts
 
-**Streamlit Cloud (Free):**
-- Unlimited apps
-- Community support
-- Public apps only
+**Cloudflare Pages (Free):**
+- Unlimited static requests/bandwidth
+- 500 builds/month
+- Custom domains included
 
 ### Paid Tiers
 
@@ -364,22 +364,22 @@ logging.basicConfig(level=logging.DEBUG)
 - Faster performance
 - Custom domains
 
-**Streamlit Cloud Team ($250/month):**
-- Private apps
-- Custom domains
-- Priority support
+**Cloudflare Pages Pro ($20/month):**
+- More concurrent builds
+- Advanced analytics
+- (Free tier is sufficient for most frontends)
 
 ### Expected Costs for Production
 
 **Small scale (< 100 users/day):**
 - Render: Free or $7/month
-- Streamlit: Free
+- Cloudflare Pages: Free
 - **Total: $0-7/month**
 
 **Medium scale (100-1000 users/day):**
 - Render: $25/month
-- Streamlit: Free or $250/month
-- **Total: $25-275/month**
+- Cloudflare Pages: Free
+- **Total: $25/month**
 
 ---
 
@@ -398,7 +398,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 1. **Service outage:**
    - Render auto-restarts
-   - Streamlit auto-recovers
+   - Cloudflare Pages serves cached static assets
    - No data loss (ephemeral by design)
 
 2. **Code corruption:**
@@ -441,7 +441,7 @@ After successful deployment:
 
 For deployment issues:
 - Render: https://render.com/docs
-- Streamlit: https://docs.streamlit.io/streamlit-cloud
+- Cloudflare Pages: https://developers.cloudflare.com/pages/
 - GitHub Issues: https://github.com/shan3520/ExpenseEye/issues
 
 ---
