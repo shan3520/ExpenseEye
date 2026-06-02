@@ -2,3 +2,9 @@ flask
 flask-cors
 pandas
 numpy
+# ML / time-series stack for forecasting, categorization and anomaly detection.
+# Pinned, lightweight and deploy-safe (no Prophet).
+scikit-learn==1.7.1
+statsmodels==0.14.6
+joblib==1.5.1
+scipy==1.16.1

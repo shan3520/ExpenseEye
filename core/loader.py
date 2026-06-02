@@ -40,15 +40,51 @@ def detect_date_column(columns):
     raise ValueError(f"Could not identify date column. Your CSV has: [{available_cols}]. Expected one of: date, transaction_date, txn_date, posting_date, value_date.")
 
 
-def detect_description_column(columns):
-    """Detect description column from CSV headers. Returns None if not found."""
+def detect_description_column(columns, df=None, exclude=None):
+    """
+    Detect the description column.
+
+    First tries known header aliases. If none match and the DataFrame is
+    provided, falls back to a content heuristic: pick the non-excluded column
+    whose values are mostly free text (not numeric, not dates). This rescues
+    statements whose narration sits under a blank / "Unnamed" header. Columns
+    that are entirely empty are ignored, so exports with no narration at all
+    correctly yield None.
+
+    Returns the column name, or None if no description could be identified.
+    """
     aliases = ['description', 'name', 'narration', 'merchant', 'details', 'particulars', 'remarks']
     normalized = {normalize_column_name(col): col for col in columns}
-    
+
     for alias in aliases:
         if alias in normalized:
             return normalized[alias]
-    
+
+    # Content-based fallback.
+    if df is not None:
+        exclude = set(exclude or [])
+        best_col, best_score = None, 0.0
+        for col in columns:
+            if col in exclude:
+                continue
+            series = df[col].dropna()
+            if len(series) == 0:
+                continue  # all-empty column (e.g. blank "Unnamed") -> skip
+            text_hits = 0
+            for val in series:
+                s = str(val).strip()
+                if s == '':
+                    continue
+                # "Text" = not parseable as a number and contains a letter.
+                if coerce_amount(s) is None and re.search(r'[A-Za-z]{2,}', s):
+                    text_hits += 1
+            score = text_hits / len(series)
+            # Require a clear majority of text values, and prefer the richest.
+            if score >= 0.6 and score > best_score:
+                best_col, best_score = col, score
+        if best_col is not None:
+            return best_col
+
     # Description is optional - return None if not found
     return None
 
@@ -108,6 +144,47 @@ def detect_amount_pattern(columns):
     raise ValueError(f"Could not identify amount columns. Your CSV has: [{available_cols}]. Expected one of: (1) DrCr + Amount, (2) Debit + Credit columns, or (3) signed Amount column.")
 
 
+def coerce_amount(value):
+    """
+    Parse a possibly messy numeric cell into a float, or None if not numeric.
+
+    Real bank exports format amounts with thousands separators ("28,840.00"),
+    currency symbols ("₹1,200"), trailing CR/DR markers ("49,429.72 CR"), or
+    parentheses for negatives ("(150.00)"). A bare float() call drops every one
+    of those rows, so we clean the value before converting. The sign hint from
+    a trailing DR / CR (or parentheses) is returned, but callers that already
+    know the sign (Debit/Credit or DrCr columns) operate on the magnitude.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return None if pd.isna(value) else float(value)
+
+    s = str(value).strip()
+    if s == '' or s.lower() in ('nan', 'none', 'na'):
+        return None
+
+    sign = 1.0
+    # Parentheses denote a negative amount in many statement formats.
+    if s.startswith('(') and s.endswith(')'):
+        sign = -1.0
+        s = s[1:-1].strip()
+    # Trailing CR / DR marker (e.g. "1,234.50 DR").
+    marker = re.search(r'([CD]R)\s*$', s, re.IGNORECASE)
+    if marker:
+        if marker.group(1).upper() == 'DR':
+            sign = -1.0
+        s = s[:marker.start()].strip()
+    # Strip currency symbols, thousands separators and any inner whitespace.
+    s = re.sub(r'[₹$€£,\s]', '', s)
+    if s in ('', '-', '+', '.'):
+        return None
+    try:
+        return sign * float(s)
+    except ValueError:
+        return None
+
+
 def normalize_amount(row, pattern, col1, col2=None):
     """Normalize amount based on detected pattern."""
     try:
@@ -115,54 +192,36 @@ def normalize_amount(row, pattern, col1, col2=None):
             drcr_value = str(row[col1]).strip() if not pd.isna(row[col1]) else ''
             # Normalize: uppercase and remove non-alphabet characters
             drcr_value = re.sub(r'[^A-Z]', '', drcr_value.upper())
-            amount_value = row[col2]
-            
-            if pd.isna(amount_value):
+
+            amount_value = coerce_amount(row[col2])
+            if amount_value is None:
                 return None
-            
-            amount_value = float(amount_value)
-            
+
             if drcr_value in ['DB', 'DR', 'D', 'DEBIT', 'WITHDRAWAL', 'W']:
                 return -abs(amount_value)
             elif drcr_value in ['CR', 'C', 'CREDIT', 'DEPOSIT', 'DEP']:
                 return abs(amount_value)
             else:
                 return None
-        
+
         elif pattern == 'debit_credit':
-            # Get values and handle both NaN and empty strings/whitespace
-            debit_val = row[col1]
-            credit_val = row[col2]
-            
-            # Treat NaN, empty string, or whitespace as 0
-            if pd.isna(debit_val) or (isinstance(debit_val, str) and debit_val.strip() == ''):
-                debit_val = 0
-            if pd.isna(credit_val) or (isinstance(credit_val, str) and credit_val.strip() == ''):
-                credit_val = 0
-            
-            try:
-                debit_val = float(debit_val)
-                credit_val = float(credit_val)
-            except (ValueError, TypeError):
-                return None
-            
+            # Coerce both columns; treat blank / non-numeric cells as 0 so that
+            # a row with only a debit (or only a credit) still parses.
+            debit_val = coerce_amount(row[col1]) or 0.0
+            credit_val = coerce_amount(row[col2]) or 0.0
+
             # If both are 0, skip this row
             if debit_val == 0 and credit_val == 0:
                 return None
-            
+
             return credit_val - debit_val
-        
+
         elif pattern == 'signed':
-            amount_value = row[col1]
-            
-            if pd.isna(amount_value):
-                return None
-            
-            return float(amount_value)
-        
+            return coerce_amount(row[col1])
+
     except (ValueError, TypeError, KeyError):
         return None
-    
+
     return None
 
 
@@ -289,10 +348,14 @@ def load_csv_to_db(csv_path, db_path):
     if df.empty:
         raise ValueError("CSV file is empty or contains no data rows.")
     
-    # Detect columns
+    # Detect columns. Amount/date columns are detected first so they can be
+    # excluded from the content-based description fallback.
     date_col = detect_date_column(df.columns)
-    desc_col = detect_description_column(df.columns)
     amount_pattern_info = detect_amount_pattern(df.columns)
+    _amount_cols = [c for c in amount_pattern_info[1:] if c]
+    desc_col = detect_description_column(
+        df.columns, df=df, exclude=[date_col, *_amount_cols]
+    )
     
     # Auto-detect date format
     dayfirst = detect_date_format(df, date_col)

@@ -26,6 +26,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.subscriptions import detect_subscriptions
 from core.overspending import detect_overspending
 from core.loader import load_csv_to_db
+from core.forecast import forecast_cashflow
+from core.categorizer import categorize_transactions, get_model_card
+from core.anomaly import detect_anomalies
 
 app = Flask(__name__)
 
@@ -319,6 +322,105 @@ def overspending():
         }), 500
 
 
+def _resolve_session_db(session_id):
+    """
+    Validate a session_id and return its database path.
+
+    Returns (db_path, None) on success or (None, (json_response, status))
+    on failure, mirroring the validation used by the existing endpoints.
+    """
+    if not session_id:
+        return None, (jsonify({
+            "success": False,
+            "error": "session_id query parameter is required"
+        }), 400)
+    if not is_valid_uuid(session_id):
+        return None, (jsonify({
+            "success": False,
+            "error": "Invalid session_id format"
+        }), 400)
+    db_path = os.path.join(tempfile.gettempdir(), f"expenseeye_{session_id}.db")
+    if not os.path.exists(db_path):
+        return None, (jsonify({
+            "success": False,
+            "error": "Session not found or expired"
+        }), 400)
+    return db_path, None
+
+
+@app.route('/forecast', methods=['GET'])
+def forecast():
+    """
+    Cash-flow forecast (ML / time-series) for a session.
+
+    Forecasts the next 30 days and next month of spending using Holt-Winters
+    exponential smoothing, with a moving-average baseline fallback for sparse
+    history. Reports holdout accuracy (MAE / RMSE / MAPE).
+
+    Required query parameter: session_id (UUID from /upload).
+    """
+    db_path, err = _resolve_session_db(request.args.get('session_id'))
+    if err:
+        return err
+    try:
+        result = forecast_cashflow(db_path)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/categorize', methods=['GET'])
+def categorize():
+    """
+    ML transaction categorization for a session.
+
+    Uses a trained TF-IDF + LogisticRegression text classifier, falling back to
+    rule-based keyword matching only for low-confidence predictions.
+
+    Required query parameter: session_id (UUID from /upload).
+    """
+    db_path, err = _resolve_session_db(request.args.get('session_id'))
+    if err:
+        return err
+    try:
+        result = categorize_transactions(db_path)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/model-card', methods=['GET'])
+def model_card():
+    """Return evaluation metrics for the categorization model (no session)."""
+    try:
+        return jsonify(get_model_card())
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/anomalies', methods=['GET'])
+def anomalies():
+    """
+    Statistical anomaly detection for a session.
+
+    Flags unusual transactions using robust per-category z-scores and explains
+    why each was flagged.
+
+    Required query parameter: session_id (UUID from /upload).
+    """
+    db_path, err = _resolve_session_db(request.args.get('session_id'))
+    if err:
+        return err
+    try:
+        result = detect_anomalies(db_path)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == '__main__':
     print("Starting ExpenseEye API...")
     print("Available endpoints:")
@@ -326,8 +428,15 @@ if __name__ == '__main__':
     print("  POST /upload")
     print("  GET  /subscriptions?session_id=<UUID>")
     print("  GET  /overspending?session_id=<UUID>")
-    print("\nListening on http://localhost:5000")
+    print("  GET  /forecast?session_id=<UUID>")
+    print("  GET  /categorize?session_id=<UUID>")
+    print("  GET  /anomalies?session_id=<UUID>")
+    print("  GET  /model-card")
+    # Bind to the port provided by the hosting platform (Render/Heroku set
+    # $PORT); fall back to 5000 for local development.
+    port = int(os.getenv('PORT', '5000'))
+    print(f"\nListening on http://0.0.0.0:{port}")
     # Debug mode disabled by default for production safety
     # Set DEBUG=1 environment variable to enable debug mode
     debug_mode = os.getenv('DEBUG', '0') == '1'
-    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

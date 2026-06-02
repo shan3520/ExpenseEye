@@ -1,0 +1,28 @@
+# Render Blueprint for the ExpenseEye API.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# This provisions the Flask backend. The React frontend is deployed separately
+# on Cloudflare Pages (root dir: viewer, build: `npm run build`, output: dist).
+#
+# After the first deploy, set CORS_ORIGINS in the Render dashboard to your
+# Cloudflare Pages URL (e.g. https://<project>.pages.dev) so the browser is
+# allowed to call this API.
+services:
+  - type: web
+    name: expenseeye-api
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    # The app reads $PORT (injected by Render) and binds to it.
+    startCommand: python api/app.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      # Set this in the dashboard to your Cloudflare Pages origin (not synced
+      # from the repo so it can differ per environment). Comma-separate for
+      # multiple origins. Defaults to "*" in code if unset.
+      - key: CORS_ORIGINS
+        sync: false
