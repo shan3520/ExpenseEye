@@ -432,8 +432,11 @@ if __name__ == '__main__':
     print("  GET  /categorize?session_id=<UUID>")
     print("  GET  /anomalies?session_id=<UUID>")
     print("  GET  /model-card")
-    print("\nListening on http://localhost:5000")
+    # Bind to the port provided by the hosting platform (Render/Heroku set
+    # $PORT); fall back to 5000 for local development.
+    port = int(os.getenv('PORT', '5000'))
+    print(f"\nListening on http://0.0.0.0:{port}")
     # Debug mode disabled by default for production safety
     # Set DEBUG=1 environment variable to enable debug mode
     debug_mode = os.getenv('DEBUG', '0') == '1'
-    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
