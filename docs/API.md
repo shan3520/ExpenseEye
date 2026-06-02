@@ -2,8 +2,11 @@
 
 ## Base URL
 
-**Production:** `https://your-app.onrender.com`  
+**Production:** `https://smartspend-v975.onrender.com`  
 **Local Development:** `http://localhost:5000`
+
+> The examples below use `https://your-app.onrender.com` as a placeholder —
+> substitute the production URL above (or your own deployment).
 
 ---
 
@@ -203,6 +206,131 @@ curl "https://your-app.onrender.com/overspending?session_id=550e8400-e29b-41d4-a
 - Requires minimum 4 months of data (3-month baseline + 1 to analyze)
 - Only returns months flagged as "OVERSPENDING"
 - Uses statistical thresholds (120% of average OR avg + std_dev)
+
+---
+
+### 5. Cash-Flow Forecast (ML)
+
+Forecast upcoming spending for a session.
+
+**Endpoint:** `GET /forecast`
+
+**Query Parameters:**
+- `session_id` (required): UUID from upload response
+
+**Request:**
+```bash
+curl "https://your-app.onrender.com/forecast?session_id=550e8400-e29b-41d4-a716-446655440000"
+```
+
+**Success Response (abridged):**
+```json
+{
+  "success": true,
+  "method": "Holt-Winters (ExponentialSmoothing)",
+  "history_days": 547,
+  "history_months": 18,
+  "next_30_day_total": 55345.89,
+  "next_month_total": 66216.41,
+  "accuracy": {
+    "mae": 3274.09, "rmse": 3575.15, "mape": 5.21,
+    "holdout_months": 4, "basis": "monthly spend, rolling one-step-ahead holdout"
+  },
+  "daily_accuracy": { "mae": 2269.64, "rmse": 5202.48, "mape": 145.69, "holdout_days": 30 },
+  "monthly": {
+    "history": [{ "month": "2023-01", "spend": 47000.0 }],
+    "forecast": [{ "month": "2024-07", "spend": 66216.41 }]
+  },
+  "daily": { "history": [{ "date": "2023-01-02", "spend": 1800.0 }], "forecast": [{ "date": "2024-07-01", "spend": 1842.3 }] }
+}
+```
+
+**Notes:**
+- Uses `statsmodels` Holt-Winters; falls back to a moving-average/linear-trend
+  baseline when history is sparse (< ~60 daily points or < 6 months).
+- Never raises on sparse data — `accuracy` may be `null` if there's too little
+  history to back-test.
+
+---
+
+### 6. Transaction Categorization (ML)
+
+Categorize every transaction in a session.
+
+**Endpoint:** `GET /categorize`
+
+**Query Parameters:**
+- `session_id` (required): UUID from upload response
+
+**Success Response (abridged):**
+```json
+{
+  "success": true,
+  "model_available": true,
+  "confidence_threshold": 0.45,
+  "counts": { "total": 613, "model": 580, "rule_fallback": 33 },
+  "breakdown": [{ "category": "rent", "total_spend": 396000.0 }],
+  "transactions": [
+    { "description": "NETFLIX", "amount": -499.0, "category": "subscriptions", "confidence": 0.94, "source": "model" }
+  ]
+}
+```
+
+**Notes:**
+- TF-IDF (word + char n-grams) → LogisticRegression, loaded once at startup.
+- Predictions below `confidence_threshold` use a keyword rule fallback
+  (`source: "rule_fallback"`).
+
+---
+
+### 7. Model Card (ML)
+
+Return the categorizer's held-out evaluation metrics. No session required.
+
+**Endpoint:** `GET /model-card`
+
+**Success Response (abridged):**
+```json
+{
+  "success": true,
+  "model": "TF-IDF (word 1-2gram + char 3-5gram) + LogisticRegression",
+  "n_samples": 405,
+  "n_classes": 9,
+  "metrics": { "accuracy": 0.9314, "macro_precision": 0.9379, "macro_recall": 0.9301, "macro_f1": 0.9306 },
+  "per_class": { "groceries": { "precision": 0.91, "recall": 0.91, "f1": 0.91, "support": 11 } },
+  "confusion_matrix": { "labels": ["dining", "groceries", "..."], "matrix": [[10, 1, 0]] }
+}
+```
+
+---
+
+### 8. Anomaly Detection (ML)
+
+Flag unusual transactions for a session.
+
+**Endpoint:** `GET /anomalies`
+
+**Query Parameters:**
+- `session_id` (required): UUID from upload response
+
+**Success Response (abridged):**
+```json
+{
+  "success": true,
+  "method": "Robust per-category z-score (median + MAD)",
+  "z_threshold": 3.5,
+  "total_transactions": 595,
+  "anomaly_count": 26,
+  "anomalies": [
+    {
+      "txn_date": "2024-06-12", "description": "ADOBE CREATIVE CLOUD",
+      "category": "subscriptions", "amount": -1811.0, "spend": 1811.0,
+      "z_score": 4.8, "category_median": 564.0,
+      "explanation": "1811 is 3.2x the typical subscriptions spend (~564); robust z-score 4.8 exceeds 3.5."
+    }
+  ]
+}
+```
 
 ---
 
@@ -421,6 +549,14 @@ fetch('https://your-app.onrender.com/upload', {
 
 ## Changelog
 
+### v2.0.0 (2026-06-02)
+- **ML features:** `/forecast` (Holt-Winters cash-flow forecast), `/categorize`
+  (TF-IDF + LogisticRegression categorizer), `/model-card`, `/anomalies`
+  (robust z-score anomaly detection)
+- CSV loader hardened: thousands separators, currency symbols, CR/DR markers,
+  parentheses negatives; content-based description-column fallback
+- App binds to `$PORT`; `render.yaml` Blueprint added
+
 ### v1.0.0 (2024-12-19)
 - Initial API release
 - CSV upload with auto-detection
@@ -430,6 +566,6 @@ fetch('https://your-app.onrender.com/upload', {
 
 ---
 
-**Last Updated:** 2024-12-19  
-**API Version:** 1.0.0  
-**Base URL:** https://your-app.onrender.com
+**Last Updated:** 2026-06-02  
+**API Version:** 2.0.0  
+**Base URL:** https://smartspend-v975.onrender.com

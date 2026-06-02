@@ -28,10 +28,15 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 │                      (core/*.py)                            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │   loader.py  │  │subscriptions │  │overspending  │     │
-│  │              │  │     .py      │  │     .py      │     │
-│  │ CSV Auto-    │  │ Subscription │  │ Overspending │     │
-│  │ Mapper       │  │ Detection    │  │ Analysis     │     │
+│  │ CSV Auto-    │  │     .py      │  │     .py      │     │
+│  │ Mapper       │  │ Subscription │  │ Overspending │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ forecast.py  │  │categorizer.py│  │  anomaly.py  │     │
+│  │ Holt-Winters │  │ TF-IDF + LR  │  │ Robust       │     │
+│  │ forecast (ML)│  │ classifier(ML)│  │ z-score (ML) │     │
+│  └──────────────┘  └──────┬───────┘  └──────────────┘     │
+│                    models/category_clf.joblib (loaded once)│
 └────────────────────┬────────────────────────────────────────┘
                      │
                      │
@@ -85,6 +90,10 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 | POST | `/upload` | Upload CSV and create session |
 | GET | `/subscriptions?session_id=<uuid>` | Get subscription analysis |
 | GET | `/overspending?session_id=<uuid>` | Get overspending analysis |
+| GET | `/forecast?session_id=<uuid>` | Cash-flow forecast (ML) |
+| GET | `/categorize?session_id=<uuid>` | Transaction categorization (ML) |
+| GET | `/model-card` | Categorizer evaluation metrics (ML) |
+| GET | `/anomalies?session_id=<uuid>` | Anomaly detection (ML) |
 | GET | `/health` | Health check |
 
 **Session Management:**
@@ -113,8 +122,9 @@ find_header_row(csv_path)
 detect_date_column(columns)
 # Identifies date column from 10+ aliases
 
-detect_description_column(columns)
-# Identifies description column (optional)
+detect_description_column(columns, df=None, exclude=None)
+# Identifies description column; falls back to content heuristic
+# (text-heavy column) when header aliases miss
 
 detect_amount_pattern(columns)
 # Detects: DrCr, Debit/Credit, or Signed Amount
@@ -122,8 +132,12 @@ detect_amount_pattern(columns)
 detect_date_format(df, date_col)
 # Auto-detects DD/MM/YYYY vs MM/DD/YYYY
 
+coerce_amount(value)
+# Cleans thousands separators, currency symbols, CR/DR markers and
+# parentheses negatives before float conversion
+
 normalize_amount(row, pattern, *cols)
-# Converts various amount formats to float
+# Converts various amount formats to float (via coerce_amount)
 
 load_csv_to_db(csv_path, db_path)
 # Main orchestration function
@@ -233,6 +247,59 @@ load_csv_to_db(csv_path, db_path)
     "status": str                # "OVERSPENDING" or "NORMAL"
 }
 ```
+
+#### 3.4 Cash-Flow Forecast (`core/forecast.py`) — ML
+
+**Purpose:** Forecast upcoming spending from the transaction history.
+
+**Approach:**
+```
+1. Aggregate expenses into daily + monthly spend series (gaps filled with 0)
+2. If history is rich (>= ~60 daily points AND >= 6 months):
+     fit statsmodels Holt-Winters ExponentialSmoothing
+       - daily:   additive trend + weekly (period 7) seasonality
+       - monthly: trend (+ yearly seasonality when >= 24 months)
+   else: moving-average + linear-trend baseline (never crashes)
+3. Back-test on a held-out slice -> MAE / RMSE / MAPE
+     - headline accuracy is MONTHLY (rolling one-step-ahead); per-day MAPE on
+       spiky data is unreliable, so it is reported only as a secondary metric
+```
+
+**Libraries:** `statsmodels`, `numpy`, `pandas`.
+
+#### 3.5 Transaction Categorizer (`core/categorizer.py`) — ML
+
+**Purpose:** Replace rule-based labels with a trained text classifier.
+
+**Approach:**
+```
+Features: FeatureUnion(
+            TF-IDF word  n-grams (1-2),
+            TF-IDF char  n-grams (3-5)   # robust to bank abbreviations
+          )
+Model:    LogisticRegression (calibrated probabilities)
+Persist:  models/category_clf.joblib  (trained once, loaded at startup)
+Fallback: keyword rules for predictions below the confidence threshold (0.45)
+```
+
+Training + evaluation live in `scripts/train_categorizer.py`; metrics are
+written to `models/model_card.json` and surfaced via `/model-card`.
+
+**Libraries:** `scikit-learn`, `joblib`.
+
+#### 3.6 Anomaly Detection (`core/anomaly.py`) — ML
+
+**Purpose:** Replace the fixed overspending threshold with a statistical method.
+
+**Approach:**
+```
+For each spend category:
+  median + MAD (Median Absolute Deviation, robust to outliers)
+  z = (spend - median) / (1.4826 * MAD)
+  flag transactions with z >= 3.5, with a human-readable explanation
+```
+
+**Libraries:** `numpy`, `pandas` (categories come from the categorizer model).
 
 ### 4. Data Layer (SQLite)
 
@@ -409,11 +476,17 @@ React frontend displays results
 
 ## Future Enhancements
 
+### Delivered (v2.0.0)
+- ✅ Currency symbol handling (₹, $, €)
+- ✅ Thousand separator support (1,000.00) + CR/DR markers
+- ✅ Spending category classification (ML categorizer)
+- ✅ Anomaly detection (robust per-category z-score)
+- ✅ Cash-flow forecasting (Holt-Winters)
+
 ### Short Term
 1. Support for Excel files directly
-2. Currency symbol handling (₹, $, €)
-3. Thousand separator support (1,000.00)
-4. More date format variations
+2. More date format variations
+3. Per-category forecasting in the UI
 
 ### Medium Term
 1. Manual column mapping UI
@@ -422,10 +495,9 @@ React frontend displays results
 4. Multi-file upload (combine statements)
 
 ### Long Term
-1. Machine learning for better subscription detection
-2. Spending category classification
-3. Budget recommendations
-4. Anomaly detection for fraud
+1. Budget recommendations
+2. ML-assisted subscription detection
+3. Fraud-focused anomaly models (IsolationForest / autoencoders)
 
 ## Testing Strategy
 
@@ -463,23 +535,28 @@ React frontend displays results
                      │ HTTPS
                      │
 ┌────────────────────▼────────────────────────────────────┐
-│                   Render Web Service                    │
-│                    (api/app.py)                         │
-│  - Gunicorn WSGI server                                 │
-│  - Auto-scaling                                         │
-│  - Health checks                                        │
+│              Render Web Service                         │
+│        (api/app.py — binds to $PORT)                    │
+│  - smartspend-v975.onrender.com                         │
+│  - ML model loaded once at startup (models/*.joblib)    │
+│  - Health checks at /health                             │
 │  - /tmp for ephemeral storage                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
+### Live URLs
+
+- **Frontend:** `https://expenseeye.pages.dev` (Cloudflare Pages)
+- **Backend:** `https://smartspend-v975.onrender.com` (Render)
+
 ### Environment Variables
 
 **Backend (Render):**
-- `FLASK_ENV`: `production`
-- `CORS_ORIGINS`: `https://expenseeye.pages.dev` (your Pages URL)
+- `CORS_ORIGINS`: `https://expenseeye.pages.dev` (the Pages URL)
+- `PORT`: injected by Render; the app binds to it automatically
 
 **Frontend (Cloudflare Pages):**
-- `VITE_API_URL`: `https://your-api.onrender.com`
+- `VITE_API_URL`: `https://smartspend-v975.onrender.com`
 
 ### Monitoring
 
@@ -497,6 +574,6 @@ React frontend displays results
 
 ---
 
-**Last Updated:** 2024-12-19  
-**Version:** 1.0.0  
+**Last Updated:** 2026-06-02  
+**Version:** 2.0.0  
 **Author:** ExpenseEye Team
