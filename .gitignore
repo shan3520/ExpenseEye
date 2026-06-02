@@ -14,6 +14,12 @@ simple_validate.py
 test_load.py
 *.log
 
+# ML artifacts that MUST be versioned. The seed/sample data override the broad
+# *.csv rule above; the trained model + model card under models/ are not matched
+# by any ignore rule and ship with the app so it deploys and is reproducible.
+!data/seed_transactions.csv
+!data/sample_statement.csv
+
 # Frontend (viewer/)
 node_modules/
 dist/

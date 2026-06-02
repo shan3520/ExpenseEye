@@ -3,6 +3,9 @@ import { Wallet, LogOut, Shield } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
 import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
+import { CashFlowForecast } from '@/components/CashFlowForecast';
+import { TransactionCategories } from '@/components/TransactionCategories';
+import { AnomalyDetection } from '@/components/AnomalyDetection';
 
 function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -72,6 +75,45 @@ function App() {
           </section>
         ) : (
           <div className="space-y-12 animate-in fade-in duration-500">
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="p-1 bg-blue-100 text-blue-600 rounded">📈</span>
+                  Cash-Flow Forecast
+                  <span className="ml-2 text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">ML</span>
+                </h3>
+              </div>
+              <div className="p-6">
+                <CashFlowForecast sessionId={sessionId} />
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="p-1 bg-purple-100 text-purple-600 rounded">🏷️</span>
+                  Smart Categorization
+                  <span className="ml-2 text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">ML</span>
+                </h3>
+              </div>
+              <div className="p-6">
+                <TransactionCategories sessionId={sessionId} />
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="p-1 bg-rose-100 text-rose-600 rounded">🚨</span>
+                  Anomaly Detection
+                  <span className="ml-2 text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">ML</span>
+                </h3>
+              </div>
+              <div className="p-6">
+                <AnomalyDetection sessionId={sessionId} />
+              </div>
+            </section>
+
             <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">

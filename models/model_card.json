@@ -1,0 +1,193 @@
+{
+  "model": "TF-IDF (word 1-2gram + char 3-5gram) + LogisticRegression",
+  "n_samples": 405,
+  "n_classes": 9,
+  "classes": [
+    "dining",
+    "groceries",
+    "income",
+    "rent",
+    "shopping",
+    "subscriptions",
+    "transfers",
+    "transport",
+    "utilities"
+  ],
+  "test_size": 0.25,
+  "metrics": {
+    "accuracy": 0.9314,
+    "macro_precision": 0.9379,
+    "macro_recall": 0.9301,
+    "macro_f1": 0.9306
+  },
+  "per_class": {
+    "dining": {
+      "precision": 0.9091,
+      "recall": 0.9091,
+      "f1": 0.9091,
+      "support": 11
+    },
+    "groceries": {
+      "precision": 0.7692,
+      "recall": 0.9091,
+      "f1": 0.8333,
+      "support": 11
+    },
+    "income": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 11
+    },
+    "rent": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 12
+    },
+    "shopping": {
+      "precision": 0.9167,
+      "recall": 0.9167,
+      "f1": 0.9167,
+      "support": 12
+    },
+    "subscriptions": {
+      "precision": 1.0,
+      "recall": 0.8182,
+      "f1": 0.9,
+      "support": 11
+    },
+    "transfers": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 12
+    },
+    "transport": {
+      "precision": 0.8462,
+      "recall": 1.0,
+      "f1": 0.9167,
+      "support": 11
+    },
+    "utilities": {
+      "precision": 1.0,
+      "recall": 0.8182,
+      "f1": 0.9,
+      "support": 11
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "dining",
+      "groceries",
+      "income",
+      "rent",
+      "shopping",
+      "subscriptions",
+      "transfers",
+      "transport",
+      "utilities"
+    ],
+    "matrix": [
+      [
+        10,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        10,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        12,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        11,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        2,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        12,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        11,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        9
+      ]
+    ]
+  }
+}
