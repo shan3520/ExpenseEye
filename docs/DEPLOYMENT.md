@@ -36,7 +36,16 @@ flask
 flask-cors
 pandas
 numpy
+scikit-learn==1.7.1
+statsmodels==0.14.6
+joblib==1.5.1
+scipy==1.16.1
 ```
+
+> The ML libraries are pinned and deploy-safe (no Prophet). The trained model
+> is committed under `models/`, so **no training runs at deploy time** — but the
+> first build is slower and more memory-hungry than a plain Flask app (see notes
+> in Step 3). A [`render.yaml`](../render.yaml) Blueprint is also included.
 
 ### Step 2: Create Render Web Service
 
@@ -97,7 +106,17 @@ Expected response:
 {"status": "ok"}
 ```
 
-4. **Copy your Render URL** (e.g., `https://ExpenseEye-api.onrender.com`)
+4. **Copy your Render URL** (the live deployment is `https://smartspend-v975.onrender.com`)
+
+> ⚠️ **Build/runtime notes for the ML stack:**
+> - The first build installs `scikit-learn`, `statsmodels` and `scipy` (large
+>   wheels) — expect **10-20 min** on the free tier.
+> - These libraries are memory-hungry; if the build or boot is killed on the
+>   free tier (512 MB), upgrade the instance or drop `statsmodels` (the forecast
+>   then uses its baseline fallback).
+> - The service binds to `$PORT` (injected by Render), not a hardcoded port.
+> - Free-tier services sleep after ~15 min idle; the **first request wakes them
+>   and takes ~10-15s** (within the frontend's 30s request timeout).
 
 ---
 
@@ -127,8 +146,11 @@ base URL from the `VITE_API_URL` build-time environment variable.
 Under **Settings → Environment variables**, add for the **Production** environment:
 
 ```
-VITE_API_URL = https://your-render-app.onrender.com
+VITE_API_URL = https://smartspend-v975.onrender.com
 ```
+
+> Use your own Render URL if different. The current live frontend
+> (`https://expenseeye.pages.dev`) is built with the value above.
 
 > `VITE_API_URL` must be set **before** the build runs — Vite inlines it at
 > build time. After changing it, trigger a new deploy.
@@ -446,5 +468,5 @@ For deployment issues:
 
 ---
 
-**Last Updated:** 2024-12-19  
-**Version:** 1.0.0
+**Last Updated:** 2026-06-02  
+**Version:** 2.0.0

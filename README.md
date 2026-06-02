@@ -10,17 +10,25 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff.svg)](https://vite.dev/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.7-f7931e.svg)](https://scikit-learn.org/)
+[![statsmodels](https://img.shields.io/badge/statsmodels-0.14-3f6ab5.svg)](https://www.statsmodels.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **🌐 Live demo:** [expenseeye.pages.dev](https://expenseeye.pages.dev) (frontend) · API at `https://smartspend-v975.onrender.com`
+> _First request after idle may take ~10-15s while the free-tier backend wakes from sleep._
 
 ## Overview
 
-ExpenseEye is a privacy-first financial analytics platform that helps you understand your spending patterns without sharing your data with third parties. Upload your bank statement CSV, and get instant insights into recurring subscriptions and overspending months.
+ExpenseEye is a privacy-first financial analytics platform that helps you understand your spending patterns without sharing your data with third parties. Upload your bank statement CSV, and get instant insights into recurring subscriptions, overspending months, and — powered by real machine learning — a cash-flow forecast, automatic transaction categorization, and anomaly detection.
 
 **Key Features:**
 - 🔒 **Privacy-First**: All processing happens on your server - no data sharing
-- 📊 **Smart CSV Auto-Mapper**: Handles 20+ bank CSV formats automatically
+- 📊 **Smart CSV Auto-Mapper**: Handles 20+ bank CSV formats automatically (incl. thousands separators, currency symbols, CR/DR markers)
 - 💳 **Subscription Detection**: Identifies recurring payments with confidence scores
 - 📈 **Overspending Analysis**: Statistical detection of unusual spending months
+- 🔮 **Cash-Flow Forecast (ML)**: Holt-Winters time-series forecast of the next 30 days / next month, with MAE/RMSE/MAPE accuracy reporting
+- 🏷️ **Smart Categorization (ML)**: TF-IDF + LogisticRegression classifier labels each transaction, with a rule-based fallback for low-confidence cases
+- 🚨 **Anomaly Detection (ML)**: Robust per-category z-scores flag unusual transactions with plain-English explanations
 - 🌍 **Global Support**: Auto-detects DD/MM/YYYY and MM/DD/YYYY date formats
 - ⚡ **Session-Based**: Ephemeral SQLite databases - data deleted after session
 
@@ -31,12 +39,25 @@ expenseeye/
 ├── api/              # Flask REST API backend
 │   └── app.py        # API endpoints
 ├── core/             # Business logic modules
-│   ├── loader.py     # CSV auto-mapper
-│   ├── subscriptions.py  # Subscription detection
-│   └── overspending.py   # Overspending analysis
+│   ├── loader.py         # CSV auto-mapper
+│   ├── subscriptions.py  # Subscription detection (rule-based)
+│   ├── overspending.py   # Overspending analysis (rule-based)
+│   ├── forecast.py       # Cash-flow forecast (statsmodels Holt-Winters)
+│   ├── categorizer.py    # ML transaction categorizer (TF-IDF + LogisticRegression)
+│   └── anomaly.py        # Anomaly detection (robust z-score)
+├── models/           # Persisted ML artifacts
+│   ├── category_clf.joblib   # Trained categorizer (loaded once at startup)
+│   └── model_card.json       # Held-out evaluation metrics
+├── data/             # Seed + sample data (synthetic, safe to commit)
+│   ├── seed_transactions.csv # Labeled training data for the categorizer
+│   └── sample_statement.csv  # Realistic 18-month statement for demos
+├── scripts/          # Reproducible data generation + model training
+│   ├── generate_data.py
+│   └── train_categorizer.py
 ├── viewer/           # React + Vite + Tailwind frontend
 │   ├── src/          # Components, API client, types
 │   └── package.json  # Frontend dependencies
+├── render.yaml       # Render Blueprint for the API
 └── requirements.txt  # Python dependencies
 ```
 
@@ -80,16 +101,24 @@ npm run dev
 
 ## Deployment
 
+> **Live deployment:** API on **Render** (`https://smartspend-v975.onrender.com`),
+> frontend on **Cloudflare Pages** (`https://expenseeye.pages.dev`). A
+> [`render.yaml`](render.yaml) Blueprint is included.
+
 ### Backend (Render)
 
-1. **Create a new Web Service** on [Render](https://render.com)
+1. **Create a new Web Service** on [Render](https://render.com) (or use the included `render.yaml` Blueprint)
 2. **Connect your GitHub repository**
 3. **Configure the service:**
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `python api/app.py`
-   - **Environment:** Python 3.11
+   - **Start Command:** `python api/app.py` (the app binds to `$PORT`)
+   - **Environment:** Python 3.11+
 4. **Set environment variable** `CORS_ORIGINS` to your frontend origin, e.g.
    `https://expenseeye.pages.dev` (comma-separated for multiple).
+
+> ℹ️ The ML stack (scikit-learn, statsmodels, scipy) makes the first build
+> slower and more memory-hungry than a plain Flask app. The trained model is
+> committed under `models/`, so **no training happens at deploy time**.
 
 ### Frontend (Cloudflare Pages)
 
@@ -210,6 +239,65 @@ Get overspending analysis for a session.
 }
 ```
 
+#### `GET /forecast?session_id=<uuid>`
+Cash-flow forecast (ML). Forecasts the next 30 days and next month of spending
+using Holt-Winters exponential smoothing, with a moving-average/linear-trend
+baseline fallback for sparse history. Reports holdout accuracy.
+
+**Response (abridged):**
+```json
+{
+  "success": true,
+  "method": "Holt-Winters (ExponentialSmoothing)",
+  "history_months": 18,
+  "next_30_day_total": 55345.89,
+  "next_month_total": 66216.41,
+  "accuracy": { "mae": 3274.09, "rmse": 3575.15, "mape": 5.21, "holdout_months": 4 },
+  "monthly": { "history": [{ "month": "2023-01", "spend": 47000.0 }], "forecast": [{ "month": "2024-07", "spend": 66216.41 }] }
+}
+```
+
+#### `GET /categorize?session_id=<uuid>`
+ML transaction categorization. Uses a trained TF-IDF + LogisticRegression
+classifier, falling back to rule-based keyword matching only for low-confidence
+predictions.
+
+**Response (abridged):**
+```json
+{
+  "success": true,
+  "counts": { "total": 613, "model": 580, "rule_fallback": 33 },
+  "breakdown": [{ "category": "rent", "total_spend": 396000.0 }],
+  "transactions": [{ "description": "NETFLIX", "category": "subscriptions", "confidence": 0.94, "source": "model" }]
+}
+```
+
+#### `GET /model-card`
+Returns the categorizer's held-out evaluation metrics (no session required).
+
+**Response (abridged):**
+```json
+{
+  "success": true,
+  "model": "TF-IDF (word 1-2gram + char 3-5gram) + LogisticRegression",
+  "metrics": { "accuracy": 0.9314, "macro_precision": 0.9379, "macro_recall": 0.9301, "macro_f1": 0.9306 }
+}
+```
+
+#### `GET /anomalies?session_id=<uuid>`
+Statistical anomaly detection. Flags unusual transactions using robust
+per-category z-scores (median + MAD) and explains why each was flagged.
+
+**Response (abridged):**
+```json
+{
+  "success": true,
+  "method": "Robust per-category z-score (median + MAD)",
+  "anomaly_count": 26,
+  "anomalies": [{ "description": "ADOBE CREATIVE CLOUD", "category": "subscriptions", "z_score": 4.8, "explanation": "1811 is 3.2x the typical subscriptions spend (~564); robust z-score 4.8 exceeds 3.5." }]
+}
+```
+
 #### `GET /health`
 Health check endpoint.
 
@@ -250,6 +338,36 @@ Health check endpoint.
 - Handles low variance with 10% minimum std_dev
 - Skips first 3 months (insufficient history)
 
+### Cash-Flow Forecast (ML)
+
+**Model:** Holt-Winters exponential smoothing (`statsmodels`) on a daily and
+monthly spend time series, with a moving-average + linear-trend baseline
+fallback when history is sparse (< ~60 daily points or < 6 months). Never
+crashes on sparse data.
+
+**Accuracy (held-out, on the bundled realistic sample):**
+- Monthly rolling one-step-ahead holdout: **MAE ₹3,274 · RMSE ₹3,575 · MAPE 5.21%**
+- Daily MAE/RMSE reported as a secondary metric (per-day MAPE is unreliable on
+  spiky transaction data, so the monthly aggregate is the headline).
+
+### Transaction Categorizer (ML)
+
+**Model:** TF-IDF features over **word (1-2 gram)** and **character (3-5 gram)**
+n-grams → **LogisticRegression**, persisted to `models/category_clf.joblib` and
+loaded once at startup. Low-confidence predictions fall back to keyword rules.
+
+**Accuracy (25% stratified holdout, 9 categories):**
+- **Accuracy 93.1% · Macro Precision 93.8% · Macro Recall 93.0% · Macro F1 93.1%**
+
+Retrain anytime: `python scripts/generate_data.py && python scripts/train_categorizer.py`
+
+### Anomaly Detection (ML)
+
+**Method:** Robust per-category z-score using the **median + MAD** (Median
+Absolute Deviation), so a few extreme outliers don't inflate the spread.
+Transactions above a z-score of 3.5 are flagged with a plain-English
+explanation of how far above the category norm they sit.
+
 ## Development
 
 ### Project Structure
@@ -261,16 +379,24 @@ expenseeye/
 ├── core/
 │   ├── loader.py              # CSV auto-mapper with smart detection
 │   ├── subscriptions.py       # Subscription detection algorithm
-│   └── overspending.py        # Overspending analysis algorithm
+│   ├── overspending.py        # Overspending analysis algorithm
+│   ├── forecast.py            # Cash-flow forecast (Holt-Winters / baseline)
+│   ├── categorizer.py         # ML categorizer (TF-IDF + LogisticRegression)
+│   └── anomaly.py             # Anomaly detection (robust z-score)
+├── models/                    # Trained model + model card (versioned)
+├── data/                      # Synthetic seed + sample data (versioned)
+├── scripts/                   # generate_data.py, train_categorizer.py
 ├── viewer/
 │   ├── src/
 │   │   ├── App.tsx            # Root React component
-│   │   ├── components/        # FileUpload, SubscriptionsTable, OverspendingAnalysis
+│   │   ├── components/        # FileUpload, SubscriptionsTable, OverspendingAnalysis,
+│   │   │                      #   CashFlowForecast, TransactionCategories, AnomalyDetection
 │   │   ├── lib/               # axios API client + utils
 │   │   └── types/             # TypeScript interfaces
 │   ├── package.json           # Frontend dependencies
 │   └── vite.config.ts         # Vite config (@ alias → src)
-├── requirements.txt           # Backend dependencies
+├── render.yaml                # Render Blueprint for the API
+├── requirements.txt           # Backend dependencies (incl. scikit-learn, statsmodels)
 ├── .gitignore                 # Excludes test files and sensitive data
 └── README.md                  # This file
 ```
