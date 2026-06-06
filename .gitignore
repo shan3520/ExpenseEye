@@ -25,3 +25,8 @@ node_modules/
 dist/
 .vite/
 *.local
+
+# Agent skills — local-only, never version-controlled
+.agents/
+.impeccable/
+.claude/skills/

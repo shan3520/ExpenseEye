@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle2 } from 'lucide-react';
+import axios from 'axios';
 import api from '@/lib/api';
 import type { UploadResponse } from '@/types';
 import { cn } from '@/lib/utils';
+import { ErrorState } from '@/components/States';
 
 interface FileUploadProps {
   onUploadSuccess: (sessionId: string) => void;
@@ -50,9 +52,10 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
     try {
       const response = await api.post<UploadResponse>('/upload', formData, { signal: controller.signal });
       if (response.data.success) { setMappingInfo(response.data.mapping_info); onUploadSuccess(response.data.session_id); }
-    } catch (err: any) {
-      if (err.name === 'AbortError' || err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      setError(err.response?.data?.error || "Failed to upload file. Please make sure the backend API is running.");
+    } catch (err: unknown) {
+      if (axios.isCancel(err)) return;
+      const apiError = axios.isAxiosError(err) ? err.response?.data?.error : undefined;
+      setError(apiError || "Failed to upload file. Please make sure the backend API is running.");
     } finally { setIsUploading(false); }
   };
 
@@ -62,80 +65,106 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-        <div className="text-sm text-blue-800">
-          <p className="font-semibold mb-1">Privacy-first</p>
-          <p>Your file is processed temporarily on the local server and deleted automatically after the session.</p>
+    <div className="w-full space-y-4">
+      <div className="panel p-6 sm:p-7">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-txt">Import a statement</h2>
+          <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[11px] text-txt-muted">CSV</span>
         </div>
-      </div>
-      <div
-        className={cn("border-2 border-dashed rounded-xl p-8 text-center transition-colors",
-          isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400")}
-        onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-      >
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
-        {!file ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <Upload className="w-8 h-8 text-gray-500" />
-            </div>
-            <div>
-              <p className="text-lg font-medium text-gray-900">Upload your bank statement</p>
-              <p className="text-sm text-gray-500 mt-1">Drag and drop your CSV file here, or click to browse</p>
-            </div>
-            <button onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Select File
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 w-full max-w-md">
-              <FileText className="w-8 h-8 text-blue-500 flex-shrink-0" />
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(2)} KB</p>
+
+        <div
+          className={cn(
+            'rounded-md border border-dashed p-7 text-center transition-colors',
+            isDragging ? 'border-brand bg-brand/[0.06]' : 'border-line-strong hover:border-txt-faint'
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
+          {!file ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-white/[0.02]">
+                <Upload className="h-5 w-5 text-txt-muted" />
               </div>
-              <button onClick={clearFile} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200" disabled={isUploading}>
-                <X className="w-5 h-5" />
+              <div>
+                <p className="text-[15px] font-medium text-txt">Drop your bank statement</p>
+                <p className="mt-1 text-sm text-txt-muted">or browse for a .csv export</p>
+              </div>
+              <button onClick={() => fileInputRef.current?.click()} className="btn-ghost">
+                Select file
               </button>
             </div>
-            <button onClick={handleUpload} disabled={isUploading}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-              {isUploading ? (
-                <><svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>Analyzing...</>
-              ) : 'Analyze Statement'}
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex flex-col items-center gap-5">
+              <div className="flex w-full items-center gap-3 rounded-md border border-line bg-white/[0.025] p-3 text-left">
+                <FileText className="h-5 w-5 flex-shrink-0 text-brand" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-txt">{file.name}</p>
+                  <p className="font-mono text-[11px] text-txt-faint">{(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button
+                  onClick={clearFile}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-white/10 hover:text-txt cursor-pointer"
+                  disabled={isUploading}
+                  aria-label="Remove file"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <button onClick={handleUpload} disabled={isUploading} className="btn-primary w-full sm:w-auto">
+                {isUploading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing…
+                  </>
+                ) : (
+                  'Analyze statement'
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <p className="mt-4 flex items-center gap-2 text-[12px] text-txt-faint">
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+          Parsed on a local server and deleted when the session ends.
+        </p>
       </div>
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 text-sm text-red-800">
-          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" /><p>{error}</p>
-        </div>
-      )}
+
+      {error && <ErrorState message={error} />}
+
       {mappingInfo && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm">
-          <div className="flex items-center gap-2 text-green-800 font-medium mb-3">
-            <CheckCircle2 className="w-5 h-5" /><p>Upload Successful</p>
+        <div className="rounded-md border border-success/25 bg-success/[0.06] p-4 text-sm">
+          <div className="mb-3 flex items-center gap-2 font-medium text-success">
+            <CheckCircle2 className="h-4 w-4" />
+            <p>Columns mapped</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-green-900 bg-white/60 rounded-md p-3">
-            <div>
-              <p><span className="font-semibold">Date Column:</span> {mappingInfo.date_column}</p>
-              <p><span className="font-semibold">Description Column:</span> {mappingInfo.description_column}</p>
-            </div>
-            <div>
-              <p><span className="font-semibold">Amount Pattern:</span> {mappingInfo.amount_pattern}</p>
-              {mappingInfo.rows_skipped > 0 && <p className="text-yellow-600">⚠️ Skipped {mappingInfo.rows_skipped} invalid rows</p>}
-            </div>
-          </div>
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+            <Mapped label="Date" value={mappingInfo.date_column} />
+            <Mapped label="Description" value={mappingInfo.description_column} />
+            <Mapped label="Amount" value={mappingInfo.amount_pattern} />
+            {mappingInfo.rows_skipped > 0 && (
+              <div className="flex items-baseline gap-2">
+                <dt className="text-txt-faint">Skipped</dt>
+                <dd className="font-mono text-warning">{mappingInfo.rows_skipped} rows</dd>
+              </div>
+            )}
+          </dl>
         </div>
       )}
+    </div>
+  );
+}
+
+function Mapped({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <dt className="text-txt-faint">{label}</dt>
+      <dd className="truncate font-mono text-txt">{value}</dd>
     </div>
   );
 }

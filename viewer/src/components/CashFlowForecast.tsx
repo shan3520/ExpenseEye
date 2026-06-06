@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, AlertCircle, Activity, Calendar, Target } from 'lucide-react';
+import { TrendingUp, Activity, Calendar, Target } from 'lucide-react';
 import axios from 'axios';
 import api from '@/lib/api';
 import type { ForecastResponse } from '@/types';
+import { inr as fmt } from '@/lib/utils';
+import { Loading, ErrorState, Empty } from './States';
 
 interface Props {
   sessionId: string;
 }
-
-const fmt = (n: number) =>
-  '₹' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 export function CashFlowForecast({ sessionId }: Props) {
   const [data, setData] = useState<ForecastResponse | null>(null);
@@ -30,23 +29,12 @@ export function CashFlowForecast({ sessionId }: Props) {
     if (sessionId) run();
   }, [sessionId]);
 
-  if (loading) return (
-    <div className="flex justify-center p-8" role="status" aria-live="polite">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <span className="sr-only">Loading cash-flow forecast</span>
-    </div>
-  );
-  if (error) return (
-    <div className="bg-red-50 text-red-800 p-4 rounded-lg flex items-start gap-3">
-      <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" /><p>{error}</p>
-    </div>
-  );
+  if (loading) return <Loading label="Forecasting cash flow…" />;
+  if (error) return <ErrorState message={error} />;
   if (!data?.success) return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center text-gray-500">
-      <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-      <p className="text-lg font-medium text-gray-900">Not enough data to forecast</p>
-      <p className="mt-1">Upload a statement with more history to see a spending forecast.</p>
-    </div>
+    <Empty icon={TrendingUp} title="Not enough data to forecast">
+      Upload a statement with more history to see a spending forecast.
+    </Empty>
   );
 
   // ----- build the monthly chart (history + 1 forecast point) -------------- //
@@ -63,79 +51,89 @@ export function CashFlowForecast({ sessionId }: Props) {
   const histPts = points.filter((p) => !p.forecast);
   const histPath = histPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.spend)}`).join(' ');
   const lastHistIdx = histPts.length - 1;
+  // A trend line needs at least two history points; with less, the chart is just
+  // an empty box with a lone dot — show a note instead.
+  const hasTrend = histPts.length >= 2;
   const acc = data.accuracy;
 
   return (
     <div className="space-y-6">
-      {/* headline numbers */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 text-blue-600 mb-2"><Calendar className="w-4 h-4" /><span className="text-sm font-medium">Next 30 Days (forecast)</span></div>
-          <span className="text-3xl font-bold text-blue-700">{fmt(data.next_30_day_total)}</span>
+      {/* headline numbers — KPI strip with hairline dividers, not boxes */}
+      <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="p-4">
+          <div className="kpi-label text-info"><Calendar className="h-3.5 w-3.5" /><span>Next 30 days</span></div>
+          <div className="kpi-value text-info">{fmt(data.next_30_day_total)}</div>
         </div>
-        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 text-indigo-600 mb-2"><Target className="w-4 h-4" /><span className="text-sm font-medium">Next Month (forecast)</span></div>
-          <span className="text-3xl font-bold text-indigo-700">{fmt(data.next_month_total)}</span>
+        <div className="p-4">
+          <div className="kpi-label text-accent-light"><Target className="h-3.5 w-3.5" /><span>Next month</span></div>
+          <div className="kpi-value text-accent-light">{fmt(data.next_month_total)}</div>
         </div>
-        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 text-gray-600 mb-2"><Activity className="w-4 h-4" /><span className="text-sm font-medium">History</span></div>
-          <span className="text-3xl font-bold text-gray-800">{data.history_months} mo</span>
-          <span className="text-xs text-gray-500 mt-1">{data.history_days} days of data</span>
+        <div className="p-4">
+          <div className="kpi-label"><Activity className="h-3.5 w-3.5" /><span>History</span></div>
+          <div className="kpi-value">{data.history_months}<span className="ml-1 text-base text-txt-faint">mo</span></div>
+          <p className="mt-1 font-mono text-[11px] text-txt-faint">{data.history_days} days of data</p>
         </div>
       </div>
 
       {/* chart */}
-      <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-semibold text-gray-700">Monthly Spend — history &amp; forecast</h4>
-          <span className="text-xs text-gray-500">{data.method}</span>
+      <div className="inset p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold text-txt">Monthly spend · history &amp; forecast</h3>
+          <span className="font-mono text-[11px] text-txt-faint">{data.method}</span>
         </div>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Monthly spend history and forecast">
-          {/* baseline */}
-          <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#e5e7eb" />
-          {/* history line */}
-          <path d={histPath} fill="none" stroke="#2563eb" strokeWidth={2} />
-          {/* forecast connector + point */}
-          {fc.length > 0 && (
-            <>
-              <line
-                x1={x(lastHistIdx)} y1={y(histPts[lastHistIdx].spend)}
-                x2={x(points.length - 1)} y2={y(points[points.length - 1].spend)}
-                stroke="#6366f1" strokeWidth={2} strokeDasharray="5 4"
-              />
-              <circle cx={x(points.length - 1)} cy={y(points[points.length - 1].spend)} r={5} fill="#6366f1" />
-            </>
-          )}
-          {/* history points */}
-          {histPts.map((p, i) => (
-            <circle key={i} cx={x(i)} cy={y(p.spend)} r={2.5} fill="#2563eb" />
-          ))}
-        </svg>
-        <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-blue-600" /> Historical</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 border-t-2 border-dashed border-indigo-500" /> Forecast</span>
-        </div>
+        {hasTrend ? (
+          <>
+            <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Monthly spend history and forecast">
+              <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="var(--line-strong)" />
+              <path d={histPath} fill="none" stroke="var(--brand)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+              {fc.length > 0 && (
+                <>
+                  <line
+                    x1={x(lastHistIdx)} y1={y(histPts[lastHistIdx].spend)}
+                    x2={x(points.length - 1)} y2={y(points[points.length - 1].spend)}
+                    stroke="var(--accent)" strokeWidth={2} strokeDasharray="5 4"
+                  />
+                  <circle cx={x(points.length - 1)} cy={y(points[points.length - 1].spend)} r={5} fill="var(--accent)" />
+                </>
+              )}
+              {histPts.map((p, i) => (
+                <circle key={i} cx={x(i)} cy={y(p.spend)} r={2.5} fill="var(--brand)" />
+              ))}
+            </svg>
+            <div className="mt-2 flex items-center gap-4 text-[11px] text-txt-muted">
+              <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3 bg-brand" /> Historical</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block w-3 border-t-2 border-dashed border-accent" /> Forecast</span>
+            </div>
+          </>
+        ) : (
+          <p className="py-6 text-center text-[13px] leading-relaxed text-txt-muted">
+            Not enough history to chart a trend yet — this forecast is based on{' '}
+            <span className="font-mono text-txt">{data.history_days} days</span> of data.
+            Upload a statement spanning more months to see the trend line.
+          </p>
+        )}
       </div>
 
       {/* accuracy */}
       {acc && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Forecast Accuracy (back-test)</h4>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{acc.mape != null ? acc.mape.toFixed(1) + '%' : '—'}</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide">MAPE</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{fmt(acc.mae)}</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide">MAE</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{fmt(acc.rmse)}</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide">RMSE</div>
-            </div>
+        <div className="inset p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-[13px] font-semibold text-txt">Forecast accuracy</h3>
+            <span className="font-mono text-[11px] text-txt-faint">back-test</span>
           </div>
-          <p className="text-xs text-gray-400 mt-3">{acc.basis}{acc.holdout_months ? ` · ${acc.holdout_months}-month holdout` : ''}</p>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              ['MAPE', acc.mape != null ? acc.mape.toFixed(1) + '%' : '—'],
+              ['MAE', fmt(acc.mae)],
+              ['RMSE', fmt(acc.rmse)],
+            ].map(([label, val]) => (
+              <div key={label}>
+                <div className="font-mono text-xl font-semibold text-txt">{val}</div>
+                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-txt-faint">{label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-txt-faint">{acc.basis}{acc.holdout_months ? ` · ${acc.holdout_months}-month holdout` : ''}</p>
         </div>
       )}
     </div>

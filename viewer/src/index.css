@@ -1,14 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ExpenseEye — operator-console fintech. Flat surfaces, hairline ledger grid,
+   figures in mono. See docs/BRAND.md. */
 :root {
-  --background: #ffffff;
-  --foreground: #000000;
+  color-scheme: dark;
+  /* surfaced as CSS vars for non-Tailwind contexts (SVG strokes, etc.) */
+  --brand: #f59e0b;
+  --accent: #8b5cf6;
+  --line-strong: rgba(148, 163, 184, 0.20);
+  --ring: #fbbf24;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer base {
+  /* One keyboard focus convention for every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #080d18;
+  color: #e8edf6;
+  font-family: Manrope, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* faint ledger grid — graph-paper texture, not a SaaS glow */
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4 {
+  font-family: Manrope, system-ui, sans-serif;
+}
+
+/* Tabular figures so currency columns align */
+.font-mono,
+[data-money] {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  /* One module = one flat panel. No glass, no stacked card-in-card. */
+  .panel {
+    @apply rounded-lg border border-line bg-panel shadow-panel;
+  }
+  /* A quieter inset surface for sub-content (charts, expanders). One level only. */
+  .inset {
+    @apply rounded-md border border-line bg-white/[0.015];
+  }
+
+  /* Editorial section eyebrow */
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-eyebrow text-txt-faint;
+  }
+
+  /* KPI strip cell (separated by hairline dividers, not individual boxes) */
+  .kpi-label {
+    @apply flex items-center gap-2 text-[12px] font-medium text-txt-muted;
+  }
+  .kpi-value {
+    @apply mt-2 font-mono text-2xl font-semibold tracking-tight text-txt;
+  }
+
+  /* Data tables */
+  .data-table {
+    @apply min-w-full text-sm;
+  }
+  .data-th {
+    @apply px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-txt-faint;
+  }
+  .data-row {
+    @apply border-t border-line transition-colors hover:bg-white/[0.025];
+  }
+  .data-td {
+    @apply px-4 py-3 whitespace-nowrap text-txt-muted;
+  }
+
+  /* Pills / tags */
+  .tag {
+    @apply inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium;
+  }
+  .tag-ml {
+    @apply inline-flex items-center rounded border border-accent/30 bg-accent/10 px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-wider text-accent-light;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-white/[0.06] cursor-pointer;
+  }
+
+  /* Empty / error state shell */
+  .state-block {
+    @apply rounded-md border border-line bg-white/[0.015] px-6 py-10 text-center;
+  }
 }
