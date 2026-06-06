@@ -91,9 +91,16 @@ export default {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Quick phosphor flash for a tape readout when its value changes.
+        "tape-flash": {
+          "0%": { opacity: "0.3", filter: "brightness(1.7)" },
+          "45%": { opacity: "1", filter: "brightness(1.3)" },
+          "100%": { opacity: "1", filter: "brightness(1)" },
+        },
       },
       animation: {
         "fade-rise": "fade-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "tape-flash": "tape-flash 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
   },

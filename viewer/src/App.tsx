@@ -181,9 +181,9 @@ function App() {
   const activeLabel = MODULES.find((m) => m.id === activeId)?.nav ?? MODULES[0].nav;
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-dvh lg:flex">
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 z-20 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-header backdrop-blur-sm lg:flex">
+      <aside className="sticky top-0 z-20 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-header backdrop-blur-sm lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-line px-5">
           <EyeMark className="h-7 w-7 text-txt" />
           <div className="leading-none">
@@ -209,13 +209,20 @@ function App() {
                 href={`#${m.id}`}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                  'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-colors',
                   active
-                    ? 'bg-brand/[0.12] font-semibold text-txt'
-                    : 'font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
+                    ? 'border-brand bg-brand/[0.15] font-semibold text-txt'
+                    : 'border-transparent font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
                 )}
               >
-                <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-brand' : 'text-txt-muted')} />
+                <Icon
+                  className={cn(
+                    'h-[18px] w-[18px] shrink-0',
+                    active
+                      ? 'text-brand drop-shadow-[0_0_4px_rgb(var(--brand-rgb)_/_0.4)]'
+                      : 'text-txt-muted'
+                  )}
+                />
                 <span className="flex-1">{m.nav}</span>
                 {m.ml && (
                   <span className="font-mono text-micro font-semibold uppercase tracking-wider text-accent/80">
@@ -290,8 +297,7 @@ function App() {
         <SessionTape sessionId={sessionId} activeLabel={activeLabel} moduleCount={MODULES.length} />
         <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
           <div className="mb-10 border-b border-line pb-5">
-            <p className="eyebrow">Console</p>
-            <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-txt text-balance">
+            <h1 className="font-display text-2xl font-bold tracking-tight text-txt text-balance">
               Spending overview
             </h1>
             <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-txt-muted">
@@ -330,7 +336,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
   ];
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <header className="border-b border-line">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
           <div className="flex items-center gap-2.5">
@@ -359,34 +365,36 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
-        {/* Left — positioning */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 sm:px-8 lg:py-16">
+        {/* Positioning — full-width, left-aligned */}
         <div className="animate-fade-rise">
-          <p className="eyebrow">Private expense analytics</p>
-          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-tight text-txt sm:text-5xl">
-            See where
+          <h1 className="font-display text-5xl font-bold leading-[1.0] tracking-tight text-txt sm:text-6xl">
+            Drop. Parse.
             <br />
-            it goes.
+            <span className="text-brand">Know.</span>
           </h1>
-          <p className="mt-5 max-w-md text-base leading-relaxed text-txt-muted text-pretty">
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
             Drop in a bank statement and ExpenseEye reads it the way an analyst would:
             forecasting next month, flagging the charges that don't fit, and surfacing the
             subscriptions you forgot about.
           </p>
 
-          <dl className="mt-9 grid max-w-md grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line">
+          {/* Capability strip — inline legend, not a boxed grid */}
+          <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
             {capabilities.map(({ icon: Icon, label, note }) => (
-              <div key={label} className="bg-panel p-4">
-                <Icon className="h-4 w-4 text-brand" />
-                <dt className="mt-2.5 text-sm font-medium text-txt">{label}</dt>
-                <dd className="font-mono text-micro text-txt-faint">{note}</dd>
-              </div>
+              <li key={label} className="flex items-center gap-2.5">
+                <Icon className="h-4 w-4 shrink-0 text-brand" />
+                <div className="leading-tight">
+                  <span className="block text-sm font-medium text-txt">{label}</span>
+                  <span className="block font-mono text-micro text-txt-faint">{note}</span>
+                </div>
+              </li>
             ))}
-          </dl>
+          </ul>
         </div>
 
-        {/* Right — the instrument */}
-        <div className="animate-fade-rise [animation-delay:80ms]">
+        {/* The instrument */}
+        <div className="mt-10 max-w-2xl animate-fade-rise [animation-delay:80ms]">
           <FileUpload onUploadSuccess={onUploadSuccess} />
         </div>
       </main>

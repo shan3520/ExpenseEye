@@ -39,6 +39,7 @@
   --tint-3: rgba(255, 255, 255, 0.065);
 
   --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.025) inset, 0 14px 34px -14px rgba(0, 4, 10, 0.74); /* machined edge highlight + deep well */
+  --shadow-panel-hover: 0 1px 0 0 rgba(255, 255, 255, 0.04) inset, 0 22px 46px -16px rgba(0, 4, 10, 0.86); /* deeper well on lift */
 
   /* focus ring + primary-button foreground */
   --ring: #34d399;
@@ -85,6 +86,7 @@
   --tint-3: rgba(15, 23, 42, 0.08);
 
   --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.18);
+  --shadow-panel-hover: 0 2px 4px rgba(15, 23, 42, 0.07), 0 18px 40px -16px rgba(15, 23, 42, 0.26);
 
   --ring: #047857;
   --on-brand: #ffffff;
@@ -155,6 +157,14 @@ h1, h2, h3, h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Tape scan — a very slow phosphor wash drifting across the telemetry strip,
+   barely above the noise floor, like a CRT raster. Collapses to static under the
+   global reduced-motion block. */
+@keyframes tape-sweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Live indicator breath — a slow phosphor ring that expands and fades. */
 @keyframes live-pulse {
   0%   { box-shadow: 0 0 0 0 rgb(var(--brand-rgb) / 0.5); }
@@ -191,9 +201,18 @@ h1, h2, h3, h4 {
 }
 
 @layer components {
-  /* One module = one flat panel. No glass, no stacked card-in-card. */
+  /* One module = one flat panel. No glass, no stacked card-in-card. Lifts a
+     hair on hover with a deeper well and a brighter hairline, so each tile reads
+     as a discrete instrument you can pick up. */
   .panel {
     @apply rounded-lg border border-line bg-panel shadow-panel;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .panel:hover {
+    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-panel-hover);
   }
   /* A quieter inset surface for sub-content (charts, expanders). One level only. */
   .inset {
@@ -217,6 +236,17 @@ h1, h2, h3, h4 {
   }
   .tape-val {
     @apply text-txt-muted;
+  }
+  /* Slow phosphor wash drifting across the tape (see @keyframes tape-sweep). */
+  .tape-sweep {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(var(--brand-rgb) / 0.05) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: tape-sweep 15s linear infinite;
   }
 
   /* Live indicator: a phosphor-green dot that breathes. Collapses to a steady

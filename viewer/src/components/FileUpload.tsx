@@ -78,8 +78,10 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
 
         <div
           className={cn(
-            'rounded-md border border-dashed p-7 text-center transition-colors',
-            isDragging ? 'border-brand bg-brand/[0.06]' : 'border-line-strong hover:border-txt-faint'
+            'rounded-md border-2 border-dashed p-6 transition-all',
+            isDragging
+              ? 'border-brand bg-brand/[0.06] ring-2 ring-brand/40'
+              : 'border-brand/30 bg-brand/[0.03] hover:border-brand/50'
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -87,7 +89,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
         >
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
           {!file ? (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1">
                 <Upload className="h-5 w-5 text-txt-muted" />
               </div>
@@ -100,7 +102,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
               </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-5">
+            <div className="flex flex-col items-start gap-5">
               <div className="flex w-full items-center gap-3 rounded-md border border-line bg-tint-2 p-3 text-left">
                 <FileText className="h-5 w-5 flex-shrink-0 text-brand" />
                 <div className="min-w-0 flex-1">

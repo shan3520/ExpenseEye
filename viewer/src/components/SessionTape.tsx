@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SessionTapeProps {
   sessionId: string;
@@ -37,16 +38,21 @@ export function SessionTape({ sessionId, activeLabel, moduleCount }: SessionTape
     return () => window.clearInterval(id);
   }, []);
 
-  const cells: { key: string; val: string; valClass?: string }[] = [
+  // `flash` marks values whose change is meaningful enough to pulse (the module
+  // in view). Uptime ticks every second, so it stays steady — flashing it would
+  // be noise, not signal.
+  const cells: { key: string; val: string; valClass?: string; flash?: boolean }[] = [
     { key: 'SES', val: shortId(sessionId) },
     { key: 'UP', val: formatUptime(uptime) },
-    { key: 'MOD', val: activeLabel, valClass: 'text-brand' },
+    { key: 'MOD', val: activeLabel, valClass: 'text-brand', flash: true },
     { key: 'LOADED', val: `${moduleCount} modules` },
   ];
 
   return (
-    <div className="z-10 border-b border-line bg-header backdrop-blur-sm lg:sticky lg:top-0">
-      <div className="flex h-9 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="relative z-10 overflow-hidden border-b border-line bg-header backdrop-blur-sm lg:sticky lg:top-0">
+      {/* Slow phosphor scan — a barely-visible sweep across the strip, like a CRT. */}
+      <div className="tape-sweep pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div className="relative flex h-9 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* live state — always first, never scrolls past the rail */}
         <div className="flex shrink-0 items-center gap-2 pl-4 pr-3.5">
           <span className="live-dot" aria-hidden="true" />
@@ -56,7 +62,13 @@ export function SessionTape({ sessionId, activeLabel, moduleCount }: SessionTape
         {cells.map((c) => (
           <div key={c.key} className="tape-cell border-l border-line">
             <span className="tape-key">{c.key}</span>
-            <span className={c.valClass ?? 'tape-val'}>{c.val}</span>
+            {/* Re-key flashing values on change so the pulse animation replays. */}
+            <span
+              key={c.flash ? c.val : undefined}
+              className={cn('readout', c.valClass ?? 'tape-val', c.flash && 'animate-tape-flash')}
+            >
+              {c.val}
+            </span>
           </div>
         ))}
 
