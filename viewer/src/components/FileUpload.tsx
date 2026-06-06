@@ -69,7 +69,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
       <div className="panel p-6 sm:p-7">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-txt">Import a statement</h2>
-          <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[11px] text-txt-muted">CSV</span>
+          <span className="rounded border border-line px-1.5 py-0.5 font-mono text-micro text-txt-muted">CSV</span>
         </div>
 
         <div
@@ -88,7 +88,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                 <Upload className="h-5 w-5 text-txt-muted" />
               </div>
               <div>
-                <p className="text-[15px] font-medium text-txt">Drop your bank statement</p>
+                <p className="text-base font-medium text-txt">Drop your bank statement</p>
                 <p className="mt-1 text-sm text-txt-muted">or browse for a .csv export</p>
               </div>
               <button onClick={() => fileInputRef.current?.click()} className="btn-ghost">
@@ -101,7 +101,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                 <FileText className="h-5 w-5 flex-shrink-0 text-brand" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-txt">{file.name}</p>
-                  <p className="font-mono text-[11px] text-txt-faint">{(file.size / 1024).toFixed(1)} KB</p>
+                  <p className="font-mono text-micro text-txt-faint">{(file.size / 1024).toFixed(1)} KB</p>
                 </div>
                 <button
                   onClick={clearFile}
@@ -129,7 +129,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           )}
         </div>
 
-        <p className="mt-4 flex items-center gap-2 text-[12px] text-txt-faint">
+        <p className="mt-4 flex items-center gap-2 text-caption text-txt-faint">
           <span className="h-1.5 w-1.5 rounded-full bg-success" />
           Parsed on a local server and deleted when the session ends.
         </p>

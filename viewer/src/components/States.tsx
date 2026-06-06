@@ -33,7 +33,7 @@ export function Empty({
   return (
     <div className="state-block">
       <Icon className="mx-auto mb-3 h-8 w-8 text-txt-faint" />
-      <p className="text-[15px] font-medium text-txt">{title}</p>
+      <p className="text-base font-medium text-txt">{title}</p>
       {children && <p className="mx-auto mt-1.5 max-w-md text-sm text-txt-muted">{children}</p>}
     </div>
   );

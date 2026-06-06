@@ -50,17 +50,17 @@ export function TransactionCategories({ sessionId }: Props) {
         <div className="p-4">
           <div className="kpi-label"><Cpu className="h-3.5 w-3.5" /><span>Model coverage</span></div>
           <div className="kpi-value text-brand">{modelPct}%</div>
-          <p className="mt-1 font-mono text-[11px] text-txt-faint">{data.counts.model}/{data.counts.total} classified</p>
+          <p className="mt-1 font-mono text-micro text-txt-faint">{data.counts.model}/{data.counts.total} classified</p>
         </div>
         <div className="p-4">
           <div className="kpi-label"><BookOpen className="h-3.5 w-3.5" /><span>Rule fallback</span></div>
           <div className="kpi-value">{data.counts.rule_fallback}</div>
-          <p className="mt-1 font-mono text-[11px] text-txt-faint">low-confidence rows</p>
+          <p className="mt-1 font-mono text-micro text-txt-faint">low-confidence rows</p>
         </div>
         <div className="p-4">
           <div className="kpi-label"><Tags className="h-3.5 w-3.5" /><span>Categories</span></div>
           <div className="kpi-value">{data.breakdown.length}</div>
-          <p className="mt-1 font-mono text-[11px] text-txt-faint">detected</p>
+          <p className="mt-1 font-mono text-micro text-txt-faint">detected</p>
         </div>
       </div>
 
@@ -85,7 +85,7 @@ export function TransactionCategories({ sessionId }: Props) {
         <div className="inset overflow-hidden">
           <button
             onClick={() => setShowCard((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-[13px] font-semibold text-txt transition-colors hover:bg-tint-2 cursor-pointer"
+            className="flex w-full items-center justify-between px-4 py-3 text-data font-semibold text-txt transition-colors hover:bg-tint-2 cursor-pointer"
           >
             <span className="flex items-center gap-2"><Cpu className="h-4 w-4 text-txt-faint" /> Model card &amp; evaluation</span>
             <ChevronDown className={`h-4 w-4 text-txt-faint transition-transform ${showCard ? 'rotate-180' : ''}`} />
@@ -104,7 +104,7 @@ export function TransactionCategories({ sessionId }: Props) {
                 ].map(([label, val]) => (
                   <div key={label as string} className="bg-panel p-3">
                     <div className="font-mono text-lg font-semibold text-accent-light">{((val as number) * 100).toFixed(1)}%</div>
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-txt-faint">{label}</div>
+                    <div className="font-mono text-micro uppercase tracking-wider text-txt-faint">{label}</div>
                   </div>
                 ))}
               </div>

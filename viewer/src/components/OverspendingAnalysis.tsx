@@ -67,16 +67,16 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
               const isOverspending = month.status === 'OVERSPENDING';
               return (
                 <tr key={idx} className={cn('border-t border-line transition-colors', isOverspending ? 'hover:bg-danger/[0.06]' : 'hover:bg-tint-2')}>
-                  <td className="px-4 py-3 whitespace-nowrap text-[13px] font-medium text-txt">
+                  <td className="px-4 py-3 whitespace-nowrap text-data font-medium text-txt">
                     {isOverspending && <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-danger align-middle" />}
                     {month.month}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt">{inr(month.spending)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt-muted">{inr(month.avg_spending)}</td>
-                  <td className={cn('px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] font-medium', month.pct_deviation > 0 ? 'text-danger' : 'text-success')}>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt">{inr(month.spending)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt-muted">{inr(month.avg_spending)}</td>
+                  <td className={cn('px-4 py-3 whitespace-nowrap text-right font-mono text-data font-medium', month.pct_deviation > 0 ? 'text-danger' : 'text-success')}>
                     {month.pct_deviation > 0 ? '+' : ''}{month.pct_deviation.toFixed(1)}%
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt-muted">{month.excess > 0 ? inr(month.excess) : '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt-muted">{month.excess > 0 ? inr(month.excess) : '—'}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">
                     <span className={cn('tag', isOverspending ? 'border border-danger/30 bg-danger/10 text-danger' : 'border border-success/30 bg-success/10 text-success')}>
                       {isOverspending ? 'Over' : 'Normal'}

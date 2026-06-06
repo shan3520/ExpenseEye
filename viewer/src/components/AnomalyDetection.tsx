@@ -36,7 +36,7 @@ export function AnomalyDetection({ sessionId }: Props) {
   if (data.anomaly_count === 0) return (
     <div className="state-block border-success/25 bg-success/[0.06]">
       <CheckCircle className="mx-auto mb-3 h-8 w-8 text-success" />
-      <p className="text-[15px] font-medium text-txt">Nothing unusual</p>
+      <p className="text-base font-medium text-txt">Nothing unusual</p>
       <p className="mx-auto mt-1.5 max-w-md text-sm text-txt-muted">
         Scanned {data.total_transactions} transactions with {data.method}.
       </p>
@@ -49,7 +49,7 @@ export function AnomalyDetection({ sessionId }: Props) {
         <p className="text-txt-muted">
           <span className="font-mono font-semibold text-danger">{data.anomaly_count}</span> unusual of {data.total_transactions}
         </p>
-        <span className="font-mono text-[11px] text-txt-faint">{data.method} · z &gt; {data.z_threshold}</span>
+        <span className="font-mono text-micro text-txt-faint">{data.method} · z &gt; {data.z_threshold}</span>
       </div>
       <div className="-mx-1 overflow-x-auto">
         <table className="data-table">
@@ -63,12 +63,12 @@ export function AnomalyDetection({ sessionId }: Props) {
           <tbody>
             {data.anomalies.map((a, i) => (
               <tr key={i} className="border-t border-line transition-colors hover:bg-danger/[0.06]">
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-[13px] text-txt-muted">{a.txn_date}</td>
-                <td className="px-4 py-3 text-[13px] font-medium text-txt">{a.description}</td>
-                <td className="px-4 py-3 text-[13px] capitalize text-txt-muted">{a.category}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt">{fmt(a.spend)}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] font-semibold text-danger">{a.z_score.toFixed(1)}</td>
-                <td className="max-w-xs px-4 py-3 text-[12px] text-txt-muted">{a.explanation}</td>
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-data text-txt-muted">{a.txn_date}</td>
+                <td className="px-4 py-3 text-data font-medium text-txt">{a.description}</td>
+                <td className="px-4 py-3 text-data capitalize text-txt-muted">{a.category}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt">{fmt(a.spend)}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data font-semibold text-danger">{a.z_score.toFixed(1)}</td>
+                <td className="max-w-xs px-4 py-3 text-caption text-txt-muted">{a.explanation}</td>
               </tr>
             ))}
           </tbody>

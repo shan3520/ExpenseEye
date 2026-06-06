@@ -71,15 +71,15 @@ export function CashFlowForecast({ sessionId }: Props) {
         <div className="p-4">
           <div className="kpi-label"><Activity className="h-3.5 w-3.5" /><span>History</span></div>
           <div className="kpi-value">{data.history_months}<span className="ml-1 text-base text-txt-faint">mo</span></div>
-          <p className="mt-1 font-mono text-[11px] text-txt-faint">{data.history_days} days of data</p>
+          <p className="mt-1 font-mono text-micro text-txt-faint">{data.history_days} days of data</p>
         </div>
       </div>
 
       {/* chart */}
       <div className="inset p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-[13px] font-semibold text-txt">Monthly spend · history &amp; forecast</h3>
-          <span className="font-mono text-[11px] text-txt-faint">{data.method}</span>
+          <h3 className="text-data font-semibold text-txt">Monthly spend · history &amp; forecast</h3>
+          <span className="font-mono text-micro text-txt-faint">{data.method}</span>
         </div>
         {hasTrend ? (
           <>
@@ -100,16 +100,16 @@ export function CashFlowForecast({ sessionId }: Props) {
                 <circle key={i} cx={x(i)} cy={y(p.spend)} r={2.5} fill="var(--brand)" />
               ))}
             </svg>
-            <div className="mt-2 flex items-center gap-4 text-[11px] text-txt-muted">
+            <div className="mt-2 flex items-center gap-4 text-micro text-txt-muted">
               <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3 bg-brand" /> Historical</span>
               <span className="flex items-center gap-1.5"><span className="inline-block w-3 border-t-2 border-dashed border-accent" /> Forecast</span>
             </div>
           </>
         ) : (
-          <p className="py-6 text-center text-[13px] leading-relaxed text-txt-muted">
-            Not enough history to chart a trend yet — this forecast is based on{' '}
-            <span className="font-mono text-txt">{data.history_days} days</span> of data.
-            Upload a statement spanning more months to see the trend line.
+          <p className="py-6 text-center text-data leading-relaxed text-txt-muted">
+            Not enough history to chart a trend yet. This forecast is based on{' '}
+            <span className="font-mono text-txt">{data.history_days} days</span> of data;
+            upload a statement spanning more months to see the trend line.
           </p>
         )}
       </div>
@@ -118,8 +118,8 @@ export function CashFlowForecast({ sessionId }: Props) {
       {acc && (
         <div className="inset p-4">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold text-txt">Forecast accuracy</h3>
-            <span className="font-mono text-[11px] text-txt-faint">back-test</span>
+            <h3 className="text-data font-semibold text-txt">Forecast accuracy</h3>
+            <span className="font-mono text-micro text-txt-faint">back-test</span>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
@@ -129,11 +129,11 @@ export function CashFlowForecast({ sessionId }: Props) {
             ].map(([label, val]) => (
               <div key={label}>
                 <div className="font-mono text-xl font-semibold text-txt">{val}</div>
-                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-txt-faint">{label}</div>
+                <div className="mt-0.5 font-mono text-micro uppercase tracking-wider text-txt-faint">{label}</div>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-txt-faint">{acc.basis}{acc.holdout_months ? ` · ${acc.holdout_months}-month holdout` : ''}</p>
+          <p className="mt-3 text-micro text-txt-faint">{acc.basis}{acc.holdout_months ? ` · ${acc.holdout_months}-month holdout` : ''}</p>
         </div>
       )}
     </div>

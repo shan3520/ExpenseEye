@@ -55,13 +55,33 @@ export default {
         warning: "rgb(var(--warning-rgb) / <alpha-value>)",
         info: "rgb(var(--info-rgb) / <alpha-value>)",
       },
+      // Two families only: Manrope (display + UI) and IBM Plex Mono (figures).
       fontFamily: {
         display: ["Manrope", "system-ui", "sans-serif"],
         sans: ["Manrope", "system-ui", "Avenir", "Helvetica", "Arial", "sans-serif"],
         mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
+      // Committed rem type scale (product UI, ~1.2 ratio). Semantic small tiers
+      // replace the muddy 9–13px arbitrary cluster; sizes are rem so the ramp
+      // respects user zoom. Tailwind defaults (sm/base/lg/2xl/…) cover the rest.
+      fontSize: {
+        micro: ["0.6875rem", { lineHeight: "1.35" }],   // 11px — eyebrows, tags, table headers, chart labels
+        caption: ["0.75rem", { lineHeight: "1.4" }],     // 12px — captions, KPI labels, fine print
+        data: ["0.8125rem", { lineHeight: "1.45" }],     // 13px — dense table / data rows
+        subhead: ["1.125rem", { lineHeight: "1.3", letterSpacing: "-0.01em" }], // 18px — module / section titles
+      },
       letterSpacing: {
         eyebrow: "0.18em",
+      },
+      // Intentional radius ladder (6 → 8 → 12 → 16), concentric when nested,
+      // not Tailwind's default 2/4/6/8. `full` / `none` inherited from defaults.
+      borderRadius: {
+        sm: "0.375rem",    // 6px  — tags, chips, micro controls
+        DEFAULT: "0.5rem", // 8px
+        md: "0.5rem",      // 8px  — buttons, inputs, inset surfaces, icon buttons
+        lg: "0.75rem",     // 12px — panels / cards (outer container)
+        xl: "1rem",        // 16px — large containers / hero
+        "2xl": "1.25rem",  // 20px
       },
       boxShadow: {
         panel: "var(--shadow-panel)",

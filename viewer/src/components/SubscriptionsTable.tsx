@@ -54,13 +54,13 @@ export function SubscriptionsTable({ sessionId }: SubscriptionsTableProps) {
           <tbody>
             {data.subscriptions.map((sub, idx) => (
               <tr key={idx} className="data-row">
-                <td className="px-4 py-3 whitespace-nowrap text-[13px] font-medium text-txt">{sub.description}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt">{inr(Math.abs(sub.amount), 2)}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-data font-medium text-txt">{sub.description}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt">{inr(Math.abs(sub.amount), 2)}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-right">
                   <span className="tag border border-accent/30 bg-accent/10 text-accent-light">{sub.frequency}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt-muted">{sub.avg_gap.toFixed(1)}d</td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-[13px] text-txt-muted">{sub.occurrences}×</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt-muted">{sub.avg_gap.toFixed(1)}d</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt-muted">{sub.occurrences}×</td>
               </tr>
             ))}
           </tbody>

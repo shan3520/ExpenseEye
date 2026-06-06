@@ -33,7 +33,7 @@
   --tint-2: rgba(255, 255, 255, 0.035);
   --tint-3: rgba(255, 255, 255, 0.06);
 
-  --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset, 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset, 0 12px 32px -12px rgba(3, 7, 15, 0.66); /* rich slate wash, not pure black */
 
   /* focus ring + primary-button foreground */
   --ring: #fbbf24;
@@ -150,12 +150,12 @@ h1, h2, h3, h4 {
 
   /* Editorial section eyebrow */
   .eyebrow {
-    @apply font-mono text-[11px] uppercase tracking-eyebrow text-txt-faint;
+    @apply font-mono text-micro uppercase tracking-eyebrow text-txt-faint;
   }
 
   /* KPI strip cell (separated by hairline dividers, not individual boxes) */
   .kpi-label {
-    @apply flex items-center gap-2 text-[12px] font-medium text-txt-muted;
+    @apply flex items-center gap-2 text-caption font-medium text-txt-muted;
   }
   .kpi-value {
     @apply mt-2 font-mono text-2xl font-semibold tracking-tight text-txt;
@@ -166,7 +166,7 @@ h1, h2, h3, h4 {
     @apply min-w-full text-sm;
   }
   .data-th {
-    @apply px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-txt-faint;
+    @apply px-4 py-2.5 text-micro font-semibold uppercase tracking-wider text-txt-faint;
   }
   .data-row {
     @apply border-t border-line transition-colors hover:bg-tint-2;
@@ -177,10 +177,10 @@ h1, h2, h3, h4 {
 
   /* Pills / tags */
   .tag {
-    @apply inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium;
+    @apply inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-micro font-medium;
   }
   .tag-ml {
-    @apply inline-flex items-center rounded border border-accent/30 bg-accent/10 px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-wider text-accent-light;
+    @apply inline-flex items-center rounded-sm border border-accent/30 bg-accent/10 px-1.5 py-px font-mono text-micro font-semibold uppercase tracking-wider text-accent-light;
   }
 
   /* Buttons */

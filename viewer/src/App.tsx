@@ -100,7 +100,7 @@ function ModuleHeader({ mod }: { mod: ModuleDef }) {
     <header className="mb-5">
       <div className="flex items-center gap-2.5">
         <Icon className="h-[18px] w-[18px] text-txt-muted" />
-        <h2 className="font-display text-[17px] font-semibold tracking-tight text-txt">
+        <h2 className="font-display text-subhead font-semibold tracking-tight text-txt">
           {mod.title}
         </h2>
         {mod.ml && <span className="tag-ml">ML</span>}
@@ -156,14 +156,14 @@ function App() {
             <span className="font-display text-base font-bold tracking-tight text-txt">
               Expense<span className="text-brand">Eye</span>
             </span>
-            <p className="mt-1 font-mono text-[9px] uppercase tracking-eyebrow text-txt-faint">
+            <p className="mt-1 font-mono text-micro uppercase tracking-eyebrow text-txt-faint">
               Analytics Console
             </p>
           </div>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3 py-5">
-          <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-eyebrow text-txt-faint">
+          <p className="px-3 pb-2 font-mono text-micro uppercase tracking-eyebrow text-txt-faint">
             Modules
           </p>
           {MODULES.map((m) => {
@@ -184,7 +184,7 @@ function App() {
                 <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-brand' : 'text-txt-muted')} />
                 <span className="flex-1">{m.nav}</span>
                 {m.ml && (
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-accent/80">
+                  <span className="font-mono text-micro font-semibold uppercase tracking-wider text-accent/80">
                     ml
                   </span>
                 )}
@@ -241,7 +241,7 @@ function App() {
               href={`#${m.id}`}
               aria-current={activeId === m.id ? 'true' : undefined}
               className={cn(
-                'flex min-h-[40px] shrink-0 items-center rounded-md px-3 text-[13px] font-medium transition-colors',
+                'flex min-h-[40px] shrink-0 items-center rounded-md px-3 text-data font-medium transition-colors',
                 activeId === m.id ? 'bg-brand/[0.12] text-txt' : 'text-txt-muted'
               )}
             >
@@ -311,7 +311,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
               <span className="font-display text-lg font-bold tracking-tight text-txt">
                 Expense<span className="text-brand">Eye</span>
               </span>
-              <p className="mt-1 font-mono text-[9px] uppercase tracking-eyebrow text-txt-faint">
+              <p className="mt-1 font-mono text-micro uppercase tracking-eyebrow text-txt-faint">
                 Analytics Console
               </p>
             </div>
@@ -351,7 +351,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
               <div key={label} className="bg-panel p-4">
                 <Icon className="h-4 w-4 text-brand" />
                 <dt className="mt-2.5 text-sm font-medium text-txt">{label}</dt>
-                <dd className="font-mono text-[11px] text-txt-faint">{note}</dd>
+                <dd className="font-mono text-micro text-txt-faint">{note}</dd>
               </div>
             ))}
           </dl>
