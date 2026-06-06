@@ -7,6 +7,7 @@ import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
 import { CashFlowForecast } from '@/components/CashFlowForecast';
 import { TransactionCategories } from '@/components/TransactionCategories';
 import { AnomalyDetection } from '@/components/AnomalyDetection';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 /** GitHub mark (not in this lucide-react build, so inlined). */
@@ -148,7 +149,7 @@ function App() {
   return (
     <div className="min-h-screen lg:flex">
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 z-20 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-canvas/80 backdrop-blur-sm lg:flex">
+      <aside className="sticky top-0 z-20 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-header backdrop-blur-sm lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-line px-5">
           <EyeMark className="h-7 w-7 text-txt" />
           <div className="leading-none">
@@ -177,7 +178,7 @@ function App() {
                   'flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
                   active
                     ? 'bg-brand/[0.12] font-semibold text-txt'
-                    : 'font-medium text-txt-muted hover:bg-white/[0.03] hover:text-txt'
+                    : 'font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
                 )}
               >
                 <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-brand' : 'text-txt-muted')} />
@@ -193,11 +194,12 @@ function App() {
         </nav>
 
         <div className="space-y-1 border-t border-line p-3">
+          <ThemeToggle withLabel />
           <a
             href={REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-white/[0.03] hover:text-txt"
+            className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt"
           >
             <GithubMark className="h-4 w-4 text-txt-muted" />
             <span>Source</span>
@@ -213,7 +215,7 @@ function App() {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 backdrop-blur-sm lg:hidden">
+      <header className="sticky top-0 z-20 border-b border-line bg-header backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <EyeMark className="h-6 w-6 text-txt" />
@@ -221,13 +223,16 @@ function App() {
               Expense<span className="text-brand">Eye</span>
             </span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="-mr-2 flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer"
-          >
-            <LogOut className="h-4 w-4" />
-            End
-          </button>
+          <div className="-mr-1 flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer"
+            >
+              <LogOut className="h-4 w-4" />
+              End
+            </button>
+          </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto border-t border-line px-3 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {MODULES.map((m) => (
@@ -311,15 +316,18 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
               </p>
             </div>
           </div>
-          <a
-            href={REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-txt-faint transition-colors hover:text-txt"
-            aria-label="GitHub repository"
-          >
-            <GithubMark className="h-5 w-5" />
-          </a>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 w-9 items-center justify-center text-txt-faint transition-colors hover:text-txt"
+              aria-label="GitHub repository"
+            >
+              <GithubMark className="h-5 w-5" />
+            </a>
+          </div>
         </div>
       </header>
 

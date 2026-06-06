@@ -66,7 +66,7 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
             {data.months.map((month, idx) => {
               const isOverspending = month.status === 'OVERSPENDING';
               return (
-                <tr key={idx} className={cn('border-t border-line transition-colors', isOverspending ? 'hover:bg-danger/[0.06]' : 'hover:bg-white/[0.025]')}>
+                <tr key={idx} className={cn('border-t border-line transition-colors', isOverspending ? 'hover:bg-danger/[0.06]' : 'hover:bg-tint-2')}>
                   <td className="px-4 py-3 whitespace-nowrap text-[13px] font-medium text-txt">
                     {isOverspending && <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-danger align-middle" />}
                     {month.month}

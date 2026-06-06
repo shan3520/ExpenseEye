@@ -69,7 +69,7 @@ export function TransactionCategories({ sessionId }: Props) {
         {data.breakdown.map((b, i) => (
           <div key={i} className="grid grid-cols-[10rem_1fr_auto] items-center gap-3 sm:grid-cols-[12rem_1fr_auto]">
             <span className="truncate text-sm font-medium capitalize text-txt">{b.category}</span>
-            <span className="h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+            <span className="h-1.5 overflow-hidden rounded-full bg-tint-2">
               <span
                 className="block h-full rounded-full bg-brand/70"
                 style={{ width: `${Math.max((b.total_spend / maxSpend) * 100, 2)}%` }}
@@ -85,7 +85,7 @@ export function TransactionCategories({ sessionId }: Props) {
         <div className="inset overflow-hidden">
           <button
             onClick={() => setShowCard((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-[13px] font-semibold text-txt transition-colors hover:bg-white/[0.025] cursor-pointer"
+            className="flex w-full items-center justify-between px-4 py-3 text-[13px] font-semibold text-txt transition-colors hover:bg-tint-2 cursor-pointer"
           >
             <span className="flex items-center gap-2"><Cpu className="h-4 w-4 text-txt-faint" /> Model card &amp; evaluation</span>
             <ChevronDown className={`h-4 w-4 text-txt-faint transition-transform ${showCard ? 'rotate-180' : ''}`} />

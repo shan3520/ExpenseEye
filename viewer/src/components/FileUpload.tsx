@@ -84,7 +84,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
           {!file ? (
             <div className="flex flex-col items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-white/[0.02]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1">
                 <Upload className="h-5 w-5 text-txt-muted" />
               </div>
               <div>
@@ -97,7 +97,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-5">
-              <div className="flex w-full items-center gap-3 rounded-md border border-line bg-white/[0.025] p-3 text-left">
+              <div className="flex w-full items-center gap-3 rounded-md border border-line bg-tint-2 p-3 text-left">
                 <FileText className="h-5 w-5 flex-shrink-0 text-brand" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-txt">{file.name}</p>
@@ -105,7 +105,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                 </div>
                 <button
                   onClick={clearFile}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-white/10 hover:text-txt cursor-pointer"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-tint-3 hover:text-txt cursor-pointer"
                   disabled={isUploading}
                   aria-label="Remove file"
                 >

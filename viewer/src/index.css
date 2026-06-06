@@ -4,15 +4,92 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ExpenseEye — operator-console fintech. Flat surfaces, hairline ledger grid,
-   figures in mono. See docs/BRAND.md. */
+/* ExpenseEye — operator-console fintech. Themeable via CSS variables: dark by
+   default, light when <html class="light">. Flat surfaces, hairline ledger
+   grid, figures in mono. Surface/text/line tokens are full color values;
+   chromatic tokens are RGB channels so Tailwind /opacity modifiers work. */
 :root {
   color-scheme: dark;
-  /* surfaced as CSS vars for non-Tailwind contexts (SVG strokes, etc.) */
-  --brand: #f59e0b;
-  --accent: #8b5cf6;
+
+  /* surfaces & text */
+  --canvas: #080d18;
+  --panel: #0e1626;
+  --panel-raised: #141f33;
+  --panel-hover: #1a2740;
+  --txt: #e8edf6;
+  --txt-muted: #94a3b8;
+  --txt-faint: #76829c; /* ≥4.5:1 on panel/canvas */
+
+  /* hairlines */
+  --line: rgba(148, 163, 184, 0.10);
   --line-strong: rgba(148, 163, 184, 0.20);
+
+  /* translucent sticky-header fill + faint ledger grid */
+  --header: rgba(8, 13, 24, 0.80);
+  --grid-line: rgba(148, 163, 184, 0.025);
+
+  /* elevation tints — light overlays on the dark canvas */
+  --tint-1: rgba(255, 255, 255, 0.02);
+  --tint-2: rgba(255, 255, 255, 0.035);
+  --tint-3: rgba(255, 255, 255, 0.06);
+
+  --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset, 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+
+  /* focus ring + primary-button foreground */
   --ring: #fbbf24;
+  --on-brand: #0f172a;
+
+  /* chromatic tokens as RGB channels (consumed via rgb(var(--x) / a)) */
+  --brand-rgb: 245 158 11;
+  --brand-light-rgb: 251 191 36;
+  --accent-rgb: 139 92 246;
+  --accent-light-rgb: 167 139 250;
+  --success-rgb: 16 185 129;
+  --danger-rgb: 239 68 68;
+  --warning-rgb: 245 158 11;
+  --info-rgb: 56 189 248;
+
+  /* derived full colors for SVG strokes / raw CSS */
+  --brand: rgb(var(--brand-rgb));
+  --accent: rgb(var(--accent-rgb));
+}
+
+.light {
+  color-scheme: light;
+
+  --canvas: #f4f6fb;
+  --panel: #ffffff;
+  --panel-raised: #f3f6fb;
+  --panel-hover: #e9eef7;
+  --txt: #0f172a;
+  --txt-muted: #475569;
+  --txt-faint: #5a6577; /* ≥4.5:1 on white */
+
+  --line: rgba(15, 23, 42, 0.10);
+  --line-strong: rgba(15, 23, 42, 0.16);
+
+  --header: rgba(244, 246, 251, 0.80);
+  --grid-line: rgba(15, 23, 42, 0.03);
+
+  /* elevation tints — dark overlays on the light canvas */
+  --tint-1: rgba(15, 23, 42, 0.025);
+  --tint-2: rgba(15, 23, 42, 0.05);
+  --tint-3: rgba(15, 23, 42, 0.08);
+
+  --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.18);
+
+  --ring: #b45309;
+  --on-brand: #ffffff;
+
+  /* deepen chromatics so they stay legible on white */
+  --brand-rgb: 180 83 9;          /* amber-700 */
+  --brand-light-rgb: 217 119 6;   /* amber-600 (hover) */
+  --accent-rgb: 124 58 237;       /* violet-600 */
+  --accent-light-rgb: 109 40 217; /* violet-700 */
+  --success-rgb: 4 120 87;        /* emerald-700 */
+  --danger-rgb: 220 38 38;        /* red-600 */
+  --warning-rgb: 180 83 9;        /* amber-700 */
+  --info-rgb: 2 132 199;          /* sky-600 */
 }
 
 html {
@@ -28,17 +105,18 @@ html {
 }
 
 body {
-  background-color: #080d18;
-  color: #e8edf6;
+  background-color: var(--canvas);
+  color: var(--txt);
   font-family: Manrope, system-ui, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   /* faint ledger grid — graph-paper texture, not a SaaS glow */
   background-image:
-    linear-gradient(to right, rgba(148, 163, 184, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.025) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: 48px 48px;
   background-attachment: fixed;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4 {
@@ -67,7 +145,7 @@ h1, h2, h3, h4 {
   }
   /* A quieter inset surface for sub-content (charts, expanders). One level only. */
   .inset {
-    @apply rounded-md border border-line bg-white/[0.015];
+    @apply rounded-md border border-line bg-tint-1;
   }
 
   /* Editorial section eyebrow */
@@ -91,7 +169,7 @@ h1, h2, h3, h4 {
     @apply px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-txt-faint;
   }
   .data-row {
-    @apply border-t border-line transition-colors hover:bg-white/[0.025];
+    @apply border-t border-line transition-colors hover:bg-tint-2;
   }
   .data-td {
     @apply px-4 py-3 whitespace-nowrap text-txt-muted;
@@ -107,14 +185,14 @@ h1, h2, h3, h4 {
 
   /* Buttons */
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-[color:var(--on-brand)] transition-colors hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
   }
   .btn-ghost {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-white/[0.06] cursor-pointer;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-tint-2 px-4 py-2.5 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-tint-3 cursor-pointer;
   }
 
   /* Empty / error state shell */
   .state-block {
-    @apply rounded-md border border-line bg-white/[0.015] px-6 py-10 text-center;
+    @apply rounded-md border border-line bg-tint-1 px-6 py-10 text-center;
   }
 }

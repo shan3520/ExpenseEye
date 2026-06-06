@@ -6,43 +6,54 @@ export default {
   ],
   theme: {
     extend: {
-      // ExpenseEye design tokens — "operator console" fintech. See docs/BRAND.md
+      // ExpenseEye design tokens — "operator console" fintech, themeable via CSS
+      // variables (dark by default, light under <html class="light">). The
+      // surface/text/line tokens are full-value vars; chromatic tokens are RGB
+      // channels so Tailwind's /opacity modifiers still work. See index.css.
       colors: {
-        // elevation model: canvas (darkest) -> panel -> raised -> hover
-        canvas: "#080d18",
+        // elevation model: canvas -> panel -> raised -> hover
+        canvas: "var(--canvas)",
         panel: {
-          DEFAULT: "#0e1626",
-          raised: "#141f33",
-          hover: "#1a2740",
+          DEFAULT: "var(--panel)",
+          raised: "var(--panel-raised)",
+          hover: "var(--panel-hover)",
         },
-        // hairline borders (cool slate, low alpha — reads as drawn lines, not glass)
+        // translucent canvas for sticky headers (alpha baked in so it can theme)
+        header: "var(--header)",
+        // hairline borders (reads as drawn lines, not glass)
         line: {
-          DEFAULT: "rgba(148, 163, 184, 0.10)",
-          strong: "rgba(148, 163, 184, 0.20)",
+          DEFAULT: "var(--line)",
+          strong: "var(--line-strong)",
         },
-        // text ramp — slightly off-white body avoids the harsh pure-white AI look
+        // text ramp
         txt: {
-          DEFAULT: "#e8edf6",
-          muted: "#94a3b8",
-          faint: "#76829c", // ≥4.5:1 on panel/canvas (WCAG AA for small text)
+          DEFAULT: "var(--txt)",
+          muted: "var(--txt-muted)",
+          faint: "var(--txt-faint)",
+        },
+        // elevation tints — light overlays on dark, dark overlays on light
+        tint: {
+          1: "var(--tint-1)",
+          2: "var(--tint-2)",
+          3: "var(--tint-3)",
         },
         brand: {
-          DEFAULT: "#F59E0B", // amber-gold — trust / "watch this"
-          light: "#FBBF24",
+          DEFAULT: "rgb(var(--brand-rgb) / <alpha-value>)", // amber-gold — trust / "watch this"
+          light: "rgb(var(--brand-light-rgb) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#8B5CF6", // violet — tech / ML / forecast
-          light: "#A78BFA",
+          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)", // violet — tech / ML / forecast
+          light: "rgb(var(--accent-light-rgb) / <alpha-value>)",
         },
         ink: {
           DEFAULT: "#0F172A",
           surface: "#1E293B",
           raised: "#334155",
         },
-        success: "#10B981",
-        danger: "#EF4444",
-        warning: "#F59E0B",
-        info: "#38BDF8",
+        success: "rgb(var(--success-rgb) / <alpha-value>)",
+        danger: "rgb(var(--danger-rgb) / <alpha-value>)",
+        warning: "rgb(var(--warning-rgb) / <alpha-value>)",
+        info: "rgb(var(--info-rgb) / <alpha-value>)",
       },
       fontFamily: {
         display: ["Manrope", "system-ui", "sans-serif"],
@@ -53,7 +64,7 @@ export default {
         eyebrow: "0.18em",
       },
       boxShadow: {
-        panel: "0 1px 0 0 rgba(255,255,255,0.02) inset, 0 12px 32px -12px rgba(0,0,0,0.6)",
+        panel: "var(--shadow-panel)",
       },
       keyframes: {
         "fade-rise": {

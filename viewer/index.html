@@ -7,12 +7,21 @@
     <meta name="theme-color" content="#0F172A" />
     <meta name="description" content="ExpenseEye — see where your money goes. Private, ML-powered expense analytics." />
     <title>ExpenseEye Analytics Viewer</title>
+    <!-- Apply the saved/system theme before first paint to avoid a flash. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (t !== 'light' && t !== 'dark') {
+            t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          document.documentElement.classList.toggle('light', t === 'light');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  <!-- impeccable-live-start -->
-<script src="http://localhost:8400/live.js"></script>
-<!-- impeccable-live-end -->
-</body>
+  </body>
 </html>
