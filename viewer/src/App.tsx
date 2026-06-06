@@ -283,7 +283,7 @@ function App() {
               aria-current={activeId === m.id ? 'true' : undefined}
               className={cn(
                 'flex min-h-[40px] shrink-0 items-center rounded-md px-3 text-data font-medium transition-colors',
-                activeId === m.id ? 'bg-brand/[0.12] text-txt' : 'text-txt-muted'
+                activeId === m.id ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted'
               )}
             >
               {m.nav}
@@ -368,7 +368,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 sm:px-8 lg:py-16">
         {/* Positioning — full-width, left-aligned */}
         <div className="animate-fade-rise">
-          <h1 className="font-display text-5xl font-bold leading-[1.0] tracking-tight text-txt sm:text-6xl">
+          <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-txt sm:text-5xl lg:text-6xl">
             Drop. Parse.
             <br />
             <span className="text-brand">Know.</span>
@@ -383,7 +383,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
           <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
             {capabilities.map(({ icon: Icon, label, note }) => (
               <li key={label} className="flex items-center gap-2.5">
-                <Icon className="h-4 w-4 shrink-0 text-brand" />
+                <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                 <div className="leading-tight">
                   <span className="block text-sm font-medium text-txt">{label}</span>
                   <span className="block font-mono text-micro text-txt-faint">{note}</span>

@@ -299,12 +299,13 @@ h1, h2, h3, h4 {
     @apply inline-flex items-center rounded-sm border border-accent/30 bg-accent/10 px-1.5 py-px font-mono text-micro font-semibold uppercase tracking-wider text-accent-light;
   }
 
-  /* Buttons */
+  /* Buttons. A 1px press on :active gives the physical-key feedback the design
+     system promises for every control; disabled buttons never reach :active. */
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-[color:var(--on-brand)] transition-colors hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-[color:var(--on-brand)] transition-colors hover:bg-brand-light active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
   }
   .btn-ghost {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-tint-2 px-4 py-2.5 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-tint-3 cursor-pointer;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-tint-2 px-4 py-2.5 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-tint-3 active:translate-y-px cursor-pointer;
   }
 
   /* Empty / error state shell */

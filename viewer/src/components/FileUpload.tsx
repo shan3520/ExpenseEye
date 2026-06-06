@@ -78,7 +78,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
 
         <div
           className={cn(
-            'rounded-md border-2 border-dashed p-6 transition-all',
+            'rounded-md border-2 border-dashed p-6 transition-[border-color,background-color,box-shadow] duration-200 ease-out',
             isDragging
               ? 'border-brand bg-brand/[0.06] ring-2 ring-brand/40'
               : 'border-brand/30 bg-brand/[0.03] hover:border-brand/50'
