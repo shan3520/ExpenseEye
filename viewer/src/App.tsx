@@ -9,6 +9,7 @@ import { CashFlowForecast } from '@/components/CashFlowForecast';
 import { TransactionCategories } from '@/components/TransactionCategories';
 import { AnomalyDetection } from '@/components/AnomalyDetection';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useInView } from '@/lib/useInView';
 import { cn } from '@/lib/utils';
 
 /** GitHub mark (not in this lucide-react build, so inlined). */
@@ -44,9 +45,14 @@ interface ModuleDef {
   desc: string;
   icon: ComponentType<{ className?: string }>;
   ml?: boolean;
+  /** Column span on the lg bento grid (5-col). Tiles tile two-up then full. */
+  span: string;
   render: (sessionId: string) => React.ReactNode;
 }
 
+// Asymmetrical bento: forecast(3)+categories(2) | anomalies(2)+subscriptions(3) |
+// overspending(5). Each row sums to 5 so it tiles cleanly; widths alternate so no
+// two rows share a rhythm, and `items-start` lets every tile keep its own height.
 const MODULES: ModuleDef[] = [
   {
     id: 'forecast',
@@ -55,6 +61,7 @@ const MODULES: ModuleDef[] = [
     desc: 'Projected spend for the coming month, with a back-tested error margin.',
     icon: TrendingUp,
     ml: true,
+    span: 'lg:col-span-3',
     render: (s) => <CashFlowForecast sessionId={s} />,
   },
   {
@@ -64,6 +71,7 @@ const MODULES: ModuleDef[] = [
     desc: 'Every transaction sorted by a trained model, with a rule-based fallback.',
     icon: Tags,
     ml: true,
+    span: 'lg:col-span-2',
     render: (s) => <TransactionCategories sessionId={s} />,
   },
   {
@@ -73,6 +81,7 @@ const MODULES: ModuleDef[] = [
     desc: 'Charges that fall outside your normal pattern, ranked by how far they deviate.',
     icon: ShieldAlert,
     ml: true,
+    span: 'lg:col-span-2',
     render: (s) => <AnomalyDetection sessionId={s} />,
   },
   {
@@ -81,6 +90,7 @@ const MODULES: ModuleDef[] = [
     title: 'Recurring Subscriptions',
     desc: 'Regular payments detected from the cadence of your statement.',
     icon: CalendarClock,
+    span: 'lg:col-span-3',
     render: (s) => <SubscriptionsTable sessionId={s} />,
   },
   {
@@ -89,6 +99,7 @@ const MODULES: ModuleDef[] = [
     title: 'Overspending Analysis',
     desc: 'Months that ran hot against your trailing three-month baseline.',
     icon: BarChart3,
+    span: 'lg:col-span-5',
     render: (s) => <OverspendingAnalysis sessionId={s} />,
   },
 ];
@@ -110,6 +121,24 @@ function ModuleHeader({ mod }: { mod: ModuleDef }) {
       </div>
       <p className="mt-2 max-w-[68ch] pl-[14px] text-sm leading-relaxed text-txt-muted text-pretty">{mod.desc}</p>
     </header>
+  );
+}
+
+/** One bento tile: header + panel, sprung into view on first scroll-in. The
+    `index` gives the opening rows a short cascade; later tiles reveal as reached. */
+function ModuleCard({ mod, sessionId, index }: { mod: ModuleDef; sessionId: string; index: number }) {
+  const { ref, inView } = useInView<HTMLElement>();
+  return (
+    <section
+      ref={ref}
+      id={mod.id}
+      data-reveal={inView ? 'in' : 'out'}
+      style={{ transitionDelay: `${Math.min(index, 3) * 80}ms` }}
+      className={cn('scroll-mt-28 lg:scroll-mt-24', mod.span)}
+    >
+      <ModuleHeader mod={mod} />
+      <div className="panel p-5 sm:p-6">{mod.render(sessionId)}</div>
+    </section>
   );
 }
 
@@ -259,24 +288,21 @@ function App() {
       {/* Main content */}
       <div className="min-w-0 flex-1">
         <SessionTape sessionId={sessionId} activeLabel={activeLabel} moduleCount={MODULES.length} />
-        <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-12">
+        <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
           <div className="mb-10 border-b border-line pb-5">
             <p className="eyebrow">Console</p>
             <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-txt text-balance">
               Spending overview
             </h1>
             <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-txt-muted">
-              Five read-outs on this statement, parsed locally. Scroll the stack or jump from the
+              Five read-outs on this statement, parsed locally. Scan the board or jump from the
               rail; the tape above tracks what you're looking at.
             </p>
           </div>
 
-          <div className="space-y-14">
-            {MODULES.map((mod) => (
-              <section key={mod.id} id={mod.id} className="scroll-mt-28 lg:scroll-mt-12">
-                <ModuleHeader mod={mod} />
-                <div className="panel p-5 sm:p-6">{mod.render(sessionId)}</div>
-              </section>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-8 lg:grid-cols-5 lg:items-start">
+            {MODULES.map((mod, i) => (
+              <ModuleCard key={mod.id} mod={mod} sessionId={sessionId} index={i} />
             ))}
           </div>
 
