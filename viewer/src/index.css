@@ -4,72 +4,80 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ExpenseEye — operator-console fintech. Themeable via CSS variables: dark by
-   default, light when <html class="light">. Flat surfaces, hairline ledger
-   grid, figures in mono. Surface/text/line tokens are full color values;
-   chromatic tokens are RGB channels so Tailwind /opacity modifiers work. */
+/* ExpenseEye — "Vault Terminal": an instrument-grade dark console. Deep OLED
+   canvas, machined graphite panels, hairline ledger grid, every figure in mono.
+   Color is signal, never decoration: phosphor-green = positive / live / go,
+   amber = caution, rose = alert, cyan = ML / forecast / info. Themeable via CSS
+   variables (dark by default, light under <html class="light">). Surface/text/
+   line tokens are full values; chromatic tokens are RGB channels so Tailwind
+   /opacity modifiers work. */
 :root {
   color-scheme: dark;
 
-  /* surfaces & text */
-  --canvas: #080d18;
-  --panel: #0e1626;
-  --panel-raised: #141f33;
-  --panel-hover: #1a2740;
-  --txt: #e8edf6;
-  --txt-muted: #94a3b8;
-  --txt-faint: #76829c; /* ≥4.5:1 on panel/canvas */
+  /* surfaces & text — deep OLED stack with a faint blue-green undertone */
+  --canvas: #05080e;
+  --panel: #0a0f18;
+  --panel-raised: #0f1623;
+  --panel-hover: #161f30;
+  --txt: #e9eff5;
+  --txt-muted: #93a1b5;
+  --txt-faint: #74809a; /* ≥4.5:1 on panel/canvas */
 
-  /* hairlines */
-  --line: rgba(148, 163, 184, 0.10);
-  --line-strong: rgba(148, 163, 184, 0.20);
+  /* hairlines — drawn ledger rules, not glass */
+  --line: rgba(140, 162, 190, 0.11);
+  --line-strong: rgba(140, 162, 190, 0.22);
 
   /* translucent sticky-header fill + faint ledger grid */
-  --header: rgba(8, 13, 24, 0.80);
-  --grid-line: rgba(148, 163, 184, 0.025);
+  --header: rgba(5, 8, 14, 0.82);
+  --grid-line: rgba(140, 162, 190, 0.028);
+  /* CRT scanline overlay — fixed, pointer-events-none, extremely subtle */
+  --scan-line: rgba(140, 200, 180, 0.022);
 
   /* elevation tints — light overlays on the dark canvas */
   --tint-1: rgba(255, 255, 255, 0.02);
-  --tint-2: rgba(255, 255, 255, 0.035);
-  --tint-3: rgba(255, 255, 255, 0.06);
+  --tint-2: rgba(255, 255, 255, 0.04);
+  --tint-3: rgba(255, 255, 255, 0.065);
 
-  --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset, 0 12px 32px -12px rgba(3, 7, 15, 0.66); /* rich slate wash, not pure black */
+  --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.025) inset, 0 14px 34px -14px rgba(0, 4, 10, 0.74); /* machined edge highlight + deep well */
 
   /* focus ring + primary-button foreground */
-  --ring: #fbbf24;
-  --on-brand: #0f172a;
+  --ring: #34d399;
+  --on-brand: #03130c;
 
   /* chromatic tokens as RGB channels (consumed via rgb(var(--x) / a)) */
-  --brand-rgb: 245 158 11;
-  --brand-light-rgb: 251 191 36;
-  --accent-rgb: 139 92 246;
-  --accent-light-rgb: 167 139 250;
-  --success-rgb: 16 185 129;
-  --danger-rgb: 239 68 68;
-  --warning-rgb: 245 158 11;
-  --info-rgb: 56 189 248;
+  --brand-rgb: 52 211 153;        /* phosphor green — live / positive / primary */
+  --brand-light-rgb: 110 231 183;
+  --accent-rgb: 34 211 238;       /* cyan — ML / forecast / tech */
+  --accent-light-rgb: 103 232 249;
+  --success-rgb: 52 211 153;      /* positive money = same phosphor green */
+  --danger-rgb: 251 113 133;      /* rose — alert / anomaly / negative */
+  --warning-rgb: 251 191 36;      /* amber — caution */
+  --info-rgb: 56 189 248;         /* sky — secondary info */
 
   /* derived full colors for SVG strokes / raw CSS */
   --brand: rgb(var(--brand-rgb));
   --accent: rgb(var(--accent-rgb));
 }
 
+/* Light instrument: cool paper with deep ink and the same signal hues,
+   deepened so they stay legible and high-contrast on white. */
 .light {
   color-scheme: light;
 
-  --canvas: #f4f6fb;
+  --canvas: #f1f4f9;
   --panel: #ffffff;
-  --panel-raised: #f3f6fb;
-  --panel-hover: #e9eef7;
-  --txt: #0f172a;
+  --panel-raised: #f2f5fa;
+  --panel-hover: #e7edf5;
+  --txt: #0c1320;
   --txt-muted: #475569;
   --txt-faint: #5a6577; /* ≥4.5:1 on white */
 
   --line: rgba(15, 23, 42, 0.10);
-  --line-strong: rgba(15, 23, 42, 0.16);
+  --line-strong: rgba(15, 23, 42, 0.17);
 
-  --header: rgba(244, 246, 251, 0.80);
-  --grid-line: rgba(15, 23, 42, 0.03);
+  --header: rgba(241, 244, 249, 0.82);
+  --grid-line: rgba(15, 23, 42, 0.032);
+  --scan-line: rgba(15, 23, 42, 0.012);
 
   /* elevation tints — dark overlays on the light canvas */
   --tint-1: rgba(15, 23, 42, 0.025);
@@ -78,16 +86,16 @@
 
   --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.18);
 
-  --ring: #b45309;
+  --ring: #047857;
   --on-brand: #ffffff;
 
   /* deepen chromatics so they stay legible on white */
-  --brand-rgb: 180 83 9;          /* amber-700 */
-  --brand-light-rgb: 217 119 6;   /* amber-600 (hover) */
-  --accent-rgb: 124 58 237;       /* violet-600 */
-  --accent-light-rgb: 109 40 217; /* violet-700 */
+  --brand-rgb: 4 120 87;          /* emerald-700 — live / positive / primary */
+  --brand-light-rgb: 5 150 105;   /* emerald-600 (hover) */
+  --accent-rgb: 14 116 144;       /* cyan-700 — ML / forecast */
+  --accent-light-rgb: 8 145 178;  /* cyan-600 */
   --success-rgb: 4 120 87;        /* emerald-700 */
-  --danger-rgb: 220 38 38;        /* red-600 */
+  --danger-rgb: 225 29 72;        /* rose-600 */
   --warning-rgb: 180 83 9;        /* amber-700 */
   --info-rgb: 2 132 199;          /* sky-600 */
 }
@@ -101,6 +109,24 @@ html {
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+
+  /* CRT scanline veil — fixed, non-interactive, sits above the canvas but below
+     content. Static (no animation) so it never costs a repaint or fights
+     reduced-motion; just lends the console a faint hardware texture. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1; /* above the canvas + ledger grid, behind all content */
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      var(--scan-line) 2px,
+      var(--scan-line) 3px
+    );
   }
 }
 
@@ -129,6 +155,13 @@ h1, h2, h3, h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Live indicator breath — a slow phosphor ring that expands and fades. */
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 rgb(var(--brand-rgb) / 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgb(var(--brand-rgb) / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--brand-rgb) / 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {
@@ -153,12 +186,46 @@ h1, h2, h3, h4 {
     @apply font-mono text-micro uppercase tracking-eyebrow text-txt-faint;
   }
 
-  /* KPI strip cell (separated by hairline dividers, not individual boxes) */
+  /* ---- Vault Terminal instrument elements ------------------------------- */
+
+  /* Session tape: a slim telemetry strip. Cells are hairline-separated, mono,
+     uppercase — a status line, not a toolbar. */
+  .tape-cell {
+    @apply flex items-center gap-2 whitespace-nowrap px-3.5 font-mono text-micro uppercase tracking-wider text-txt-faint;
+  }
+  .tape-key {
+    @apply text-txt-faint;
+  }
+  .tape-val {
+    @apply text-txt-muted;
+  }
+
+  /* Live indicator: a phosphor-green dot that breathes. Collapses to a steady
+     dot under reduced motion (handled by the global reduced-motion block). */
+  .live-dot {
+    @apply h-1.5 w-1.5 rounded-full bg-brand;
+    box-shadow: 0 0 0 0 rgb(var(--brand-rgb) / 0.55);
+    animation: live-pulse 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  /* Phosphor readout: big mono figures get a whisper of glow on the dark
+     console so they read like lit segments, not flat text. No-op in light. */
+  .readout {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  /* Active-module marker: a short phosphor rule that sits before a header. */
+  .module-rail {
+    @apply h-3.5 w-0.5 rounded-full bg-brand;
+  }
+
+  /* KPI strip cell (separated by hairline dividers, not individual boxes).
+     Labels read as instrument legends: mono, uppercase, tracked out. */
   .kpi-label {
-    @apply flex items-center gap-2 text-caption font-medium text-txt-muted;
+    @apply flex items-center gap-2 font-mono text-micro font-medium uppercase tracking-wider text-txt-muted;
   }
   .kpi-value {
-    @apply mt-2 font-mono text-2xl font-semibold tracking-tight text-txt;
+    @apply mt-2.5 font-mono text-[1.7rem] font-semibold leading-none tracking-tight tabular-nums text-txt;
   }
 
   /* Data tables */

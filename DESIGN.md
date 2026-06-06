@@ -1,160 +1,200 @@
-# ExpenseEye Design System
+# ExpenseEye Design System — "Vault Terminal"
 
-## Color
+ExpenseEye is styled as an **instrument-grade dark console**: a private terminal
+pointed at your own money. Deep OLED canvas, machined graphite panels, a hairline
+ledger grid, every figure set in mono. The guiding rule is that **color is signal,
+never decoration** — a hue only appears when it carries meaning.
 
-### Canvas
-- Canvas: #080d18 (dark background)
+The system is fully themeable through CSS variables (dark by default, light under
+`<html class="light">`). Surface/text/line tokens are full color values; chromatic
+tokens are stored as RGB channels so Tailwind's `/opacity` modifiers still work.
+See `viewer/src/index.css` and `viewer/tailwind.config.js` for the source of truth.
 
-### Panel
-- Panel: #0e1626 (default panel background)
-- Panel raised: #141f33 (elevated panel state)
-- Panel hover: #1a2740 (hover state)
+## Signal Philosophy
 
-### Line (Borders)
-- Line: rgba(148, 163, 184, 0.10) (hairline borders)
-- Line strong: rgba(148, 163, 184, 0.20) (stronger borders)
+| Hue | Meaning |
+|-----|---------|
+| Phosphor green (brand) | live, positive, primary action / "go" |
+| Cyan (accent) | ML, forecast, technical readouts |
+| Amber (warning) | caution |
+| Rose (danger) | alert, anomaly, negative |
+| Sky (info) | secondary information |
 
-### Text
-- Text default: #e8edf6 (primary text)
-- Text muted: #94a3b8 (secondary text)
-- Text faint: #5d6b85 (tertiary text/disabled)
+Positive money and the primary signal share the same phosphor green — in a terminal,
+green simply means "good / active". Red means bad, amber means watch.
 
-### Brand
-- Brand default: #F59E0B (amber-gold - trust/watch this)
-- Brand light: #FBBF24
+## Color — Dark (default)
 
-### Accent
-- Accent default: #8B5CF6 (violet - tech/ML/forecast)
-- Accent light: #A78BFA
+### Surfaces & text
+- Canvas: `#05080e` (deep OLED, faint blue-green undertone)
+- Panel: `#0a0f18`
+- Panel raised: `#0f1623`
+- Panel hover: `#161f30`
+- Text default: `#e9eff5`
+- Text muted: `#93a1b5`
+- Text faint: `#74809a` (≥4.5:1 on panel/canvas)
 
-### Ink
-- Ink default: #0F172A (primary ink color)
-- Ink surface: #1E293B (surface level)
-- Ink raised: #334155 (raised surface)
+### Hairlines & textures
+- Line: `rgba(140, 162, 190, 0.11)`
+- Line strong: `rgba(140, 162, 190, 0.22)`
+- Header fill (sticky, translucent): `rgba(5, 8, 14, 0.82)`
+- Ledger grid line: `rgba(140, 162, 190, 0.028)` (48px graph-paper grid on the canvas)
+- Scanline: `rgba(140, 200, 180, 0.022)` (static CRT veil, fixed + `pointer-events-none`)
 
-### Semantic Colors
-- Success: #10B981
-- Danger: #EF4444
-- Warning: #F59E0B
-- Info: #38BDF8
+### Signal colors
+- Brand (phosphor green): `#34d399` / light `#6ee7b7`
+- Accent (cyan): `#22d3ee` / light `#67e8f9`
+- Success: `#34d399` (= brand green)
+- Danger (rose): `#fb7185`
+- Warning (amber): `#fbbf24`
+- Info (sky): `#38bdf8`
+- Focus ring: `#34d399`
+- On-brand (text on green buttons): `#03130c`
+
+## Color — Light instrument
+
+Cool paper with deep ink and the same signal hues, deepened so they stay legible
+and high-contrast on white.
+
+- Canvas: `#f1f4f9` · Panel: `#ffffff` · Panel raised: `#f2f5fa` · Panel hover: `#e7edf5`
+- Text default: `#0c1320` · muted: `#475569` · faint: `#5a6577` (≥4.5:1 on white)
+- Brand: `#047857` (emerald-700) / light `#059669`
+- Accent: `#0e7490` (cyan-700) / light `#0891b2`
+- Danger: `#e11d48` (rose-600) · Warning: `#b45309` (amber-700) · Info: `#0284c7` (sky-600)
+- Focus ring: `#047857`
 
 ## Typography
 
-### Font Families
+### Font families
 - Display: Manrope, system-ui, sans-serif
 - Sans: Manrope, system-ui, Avenir, Helvetica, Arial, sans-serif
 - Mono: IBM Plex Mono, ui-monospace, SFMono-Regular, monospace
 
-### Letter Spacing
+All numeric figures use mono with `tabular-nums` so currency columns align to the
+digit. Mono/uppercase is also the voice of instrument legends (KPI labels, the
+session tape, table headers).
+
+### Type scale (rem, respects user zoom)
+- micro: 0.6875rem (11px) — eyebrows, tags, table headers, tape cells
+- caption: 0.75rem (12px) — captions, fine print
+- data: 0.8125rem (13px) — dense table / data rows
+- subhead: 1.125rem (18px) — module / section titles
+
+### Letter spacing
 - Eyebrow: 0.18em
 
 ## Shadows
 
-### Panel Shadow
-- Panel: 0 1px 0 0 rgba(255,255,255,0.02) inset, 0 12px 32px -12px rgba(0,0,0,0.6)
-
-## Animation
-
-### Keyframes
-- Fade rise: 
-  - 0%: opacity 0, transform translateY(8px)
-  - 100%: opacity 1, transform translateY(0)
-
-### Animation
-- Fade rise: fade-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both
+- Panel: `0 1px 0 0 rgba(255,255,255,0.025) inset, 0 14px 34px -14px rgba(0,4,10,0.74)`
+  — a machined edge highlight over a deep well (not a generic drop shadow).
 
 ## Components
 
 ### Panel
-- Base: rounded-lg border border-line bg-panel shadow-panel
-- States: default, hover, active, disabled
+- Base: `rounded-lg border border-line bg-panel shadow-panel`
+- One module = one flat panel. No glass, no stacked card-in-card.
 
 ### Inset
-- Base: rounded-md border border-line bg-white/[0.015]
+- Base: `rounded-md border border-line bg-tint-1` (one quieter level for sub-content)
 
 ### Eyebrow
-- Base: font-mono text-[11px] uppercase tracking-eyebrow text-txt-faint
+- Base: `font-mono text-micro uppercase tracking-eyebrow text-txt-faint`
 
-### KPI Label
-- Base: flex items-center gap-2 text-[12px] font-medium text-txt-muted
+### Session tape (signature)
+- A slim sticky telemetry strip at the top of the console: live indicator, session
+  handle, ticking uptime, the module currently in view, and a standing
+  `LOCAL · NOTHING STORED` assurance.
+- Cells: `flex items-center gap-2 whitespace-nowrap px-3.5 font-mono text-micro uppercase tracking-wider`, hairline-separated (`border-l border-line`).
+- Sticky on desktop (`lg:sticky lg:top-0`); scrolls away on mobile to clear the mobile top bar.
 
-### KPI Value
-- Base: mt-2 font-mono text-2xl font-semibold tracking-tight text-txt
+### Live dot
+- Base: `.live-dot` — phosphor-green dot with a slow expanding `live-pulse` ring
+  (2.4s). Collapses to a steady dot under reduced motion.
 
-### Data Table
-- Base: min-w-full text-sm
-- Header: px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-txt-faint
-- Row: border-t border-line transition-colors hover:bg-white/[0.025]
-- Cell: px-4 py-3 whitespace-nowrap text-txt-muted
+### Module rail
+- Base: `.module-rail` — a short phosphor tick before each module header.
+
+### KPI label / value
+- Label: `font-mono text-micro font-medium uppercase tracking-wider text-txt-muted` (instrument legend)
+- Value: `mt-2.5 font-mono text-[1.7rem] font-semibold leading-none tracking-tight tabular-nums text-txt`
+- Headline values roll up from zero on mount via the `Counter` component (see Motion).
+
+### Data table
+- Base: `min-w-full text-sm`
+- Header: `px-4 py-2.5 text-micro font-semibold uppercase tracking-wider text-txt-faint`
+- Row: `border-t border-line transition-colors hover:bg-tint-2`
+- Cell: `px-4 py-3 whitespace-nowrap text-txt-muted`
 
 ### Tag
-- Base: inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium
-- ML Tag: inline-flex items-center rounded border border-accent/30 bg-accent/10 px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-wider text-accent-light
+- Base: `inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-micro font-medium`
+- ML tag: `border border-accent/30 bg-accent/10 ... text-accent-light` (cyan)
 
-### Button Primary
-- Base: inline-flex items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer
+### Button primary
+- Base: `inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-[color:var(--on-brand)] transition-colors hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer`
 
-### Button Ghost
-- Base: inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-white/[0.03] px-4 py-2 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-white/[0.06] cursor-pointer
+### Button ghost
+- Base: `inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-strong bg-tint-2 px-4 py-2.5 text-sm font-medium text-txt-muted transition-colors hover:text-txt hover:bg-tint-3 cursor-pointer`
 
-### State Block
-- Base: rounded-md border border-line bg-white/[0.015] px-6 py-10 text-center
+### State block
+- Base: `rounded-md border border-line bg-tint-1 px-6 py-10 text-center`
+
+### Radius ladder
+- sm 6px (tags) · md/DEFAULT 8px (buttons, inputs, insets) · lg 12px (panels) · xl 16px (large containers)
 
 ## Motion
 
-### Transition Duration
-- Standard: 150–250 ms for most transitions
-- Purpose: conveys state change, feedback, loading, reveal
+Motion is instrument-grade: minimal, mechanical, and always motivated (feedback or
+state change), never decorative.
 
-### Reduced Motion
-- When prefers-reduced-motion: reduce
-- Scroll behavior: auto
-- Animation duration: 0.01ms !important
-- Animation iteration count: 1 !important
-- Transition duration: 0.01ms !important
+### Count-up readouts
+- `Counter` rolls KPI figures from zero to value on mount (easeOutExpo, ~900ms),
+  the "data just landed" feedback. Driven by a single `requestAnimationFrame`
+  loop, not per-frame React churn.
+
+### Live pulse
+- `live-pulse` keyframe: a phosphor ring that expands and fades (2.4s loop).
+
+### Fade rise
+- `fade-rise`: opacity 0 → 1, translateY(8px) → 0, `0.5s cubic-bezier(0.16, 1, 0.3, 1)`.
+
+### Scanline
+- Static (no animation) so it never costs a repaint and never fights reduced motion.
+
+### Reduced motion (`prefers-reduced-motion: reduce`)
+- Scroll behavior → auto; animation/transition durations clamped to ~0.
+- `Counter` snaps directly to its final value (via `useReducedMotion`).
+- Live pulse collapses to a steady dot.
 
 ## Accessibility
 
-### WCAG Compliance
-- Target: WCAG 2.1 AA
-- Color contrast: minimum 4.5:1 for body text, 3:1 for large text
-- Focus visible: clear focus indicators
-- Reduced motion: respected via media query
+### WCAG compliance
+- Target: WCAG 2.1 AA — minimum 4.5:1 for body text, 3:1 for large text.
+- One focus convention everywhere: `2px solid var(--ring)` with `2px` offset.
+- Reduced motion respected via media query and `useReducedMotion`.
 
-### Color Blindness
-- Palette tested for deuteranopia, protanopia, tritanopia
-- Information conveyed through multiple channels (color + icon + text)
+### Color blindness
+- Palette chosen for deuteranopia / protanopia / tritanopia legibility.
+- Information is conveyed through multiple channels (color + icon + text), never color alone.
 
 ## Layout
 
-### Responsive Behavior
-- Structural changes: sidebar collapse, responsive tables, breakpoint-driven columns
-- Grid system: repeat(auto-fit, minmax(280px, 1fr)) for fluid grids
-- Spacing: varied for rhythm and hierarchy
+### Shell
+- Desktop: sticky left sidebar (module rail + theme + source + end session) beside a
+  scrolling main column topped by the sticky session tape.
+- Mobile: sticky top bar with a horizontal module nav; the tape scrolls inline.
 
-### Z-index Scale
-- Dropdown: 1000
-- Sticky: 1100
-- Modal backdrop: 1200
-- Modal: 1300
-- Toast: 1400
-- Tooltip: 1500
+### Responsive behavior
+- Asymmetric / multi-column layouts collapse to single column with `w-full` below `md`.
+- Tables scroll horizontally on narrow viewports.
+- Use `min-h-screen` / `min-h-[100dvh]` for full-height regions, never `h-screen` content traps.
+
+### Z-index
+- Reserved for systemic layers only: sticky tape (z-10), sidebar / mobile header (z-20),
+  scanline veil (z-index -1, behind all content).
 
 ## Component Vocabulary
 
-### Interactive Components
-All interactive components include states: default, hover, focus, active, disabled, loading, error
-
-### Loading States
-- Skeleton states preferred over spinners in content
-- Spinners only for full-page loads
-
-### Empty States
-- Educational: teach the interface, not just "nothing here"
-- Include illustration or icon when appropriate
-- Provide clear next steps
-
-### Affordances
-- Consistent button shapes
-- Consistent form-control vocabulary
-- Consistent icon style
+- Every interactive component carries states: default, hover, focus, active, disabled, loading, error.
+- Loading: skeletons preferred in content; spinners only for module/page loads.
+- Empty states: educational — name what's missing and the next step.
+- Affordances: consistent button shapes, form-control vocabulary, and icon style (Lucide, light strokes).

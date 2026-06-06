@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
 import { LogOut, TrendingUp, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
+import { SessionTape } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
 import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
 import { CashFlowForecast } from '@/components/CashFlowForecast';
@@ -20,7 +21,8 @@ function GithubMark({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
-/** ExpenseEye logo mark — eye whose iris is a pie/donut chart. See docs/BRAND.md */
+/** ExpenseEye logo mark — eye whose iris is a pie/donut chart. Recolored to the
+    Vault Terminal signal palette: phosphor-green iris ring, cyan data wedge. */
 function EyeMark({ className = 'w-6 h-6' }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
@@ -28,8 +30,8 @@ function EyeMark({ className = 'w-6 h-6' }: { className?: string }) {
         d="M3 16C6.5 9.5 11 6.5 16 6.5C21 6.5 25.5 9.5 29 16C25.5 22.5 21 25.5 16 25.5C11 25.5 6.5 22.5 3 16Z"
         stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinejoin="round"
       />
-      <circle cx="16" cy="16" r="5.6" fill="none" stroke="#F59E0B" strokeWidth="3.2" />
-      <path d="M16 16 L16 10.4 A5.6 5.6 0 0 1 20.85 18.8 Z" fill="#8B5CF6" />
+      <circle cx="16" cy="16" r="5.6" fill="none" stroke="var(--brand)" strokeWidth="3.2" />
+      <path d="M16 16 L16 10.4 A5.6 5.6 0 0 1 20.85 18.8 Z" fill="var(--accent)" />
       <circle cx="16" cy="16" r="2.1" fill="currentColor" />
     </svg>
   );
@@ -99,13 +101,14 @@ function ModuleHeader({ mod }: { mod: ModuleDef }) {
   return (
     <header className="mb-5">
       <div className="flex items-center gap-2.5">
+        <span className="module-rail" aria-hidden="true" />
         <Icon className="h-[18px] w-[18px] text-txt-muted" />
         <h2 className="font-display text-subhead font-semibold tracking-tight text-txt">
           {mod.title}
         </h2>
         {mod.ml && <span className="tag-ml">ML</span>}
       </div>
-      <p className="mt-2 max-w-[68ch] text-sm leading-relaxed text-txt-muted text-pretty">{mod.desc}</p>
+      <p className="mt-2 max-w-[68ch] pl-[14px] text-sm leading-relaxed text-txt-muted text-pretty">{mod.desc}</p>
     </header>
   );
 }
@@ -146,6 +149,8 @@ function App() {
   }
 
   // -------------------------------------------------------------- dashboard //
+  const activeLabel = MODULES.find((m) => m.id === activeId)?.nav ?? MODULES[0].nav;
+
   return (
     <div className="min-h-screen lg:flex">
       {/* Sidebar (desktop) */}
@@ -253,20 +258,17 @@ function App() {
 
       {/* Main content */}
       <div className="min-w-0 flex-1">
+        <SessionTape sessionId={sessionId} activeLabel={activeLabel} moduleCount={MODULES.length} />
         <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-12">
-          <div className="mb-10 flex items-baseline justify-between border-b border-line pb-5">
-            <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-txt text-balance">
-                Spending overview
-              </h1>
-              <p className="mt-1.5 flex items-center gap-2 text-sm text-txt-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-                Session active
-              </p>
-            </div>
-            <span className="hidden font-mono text-xs text-txt-faint sm:block">
-              {MODULES.length} modules
-            </span>
+          <div className="mb-10 border-b border-line pb-5">
+            <p className="eyebrow">Console</p>
+            <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-txt text-balance">
+              Spending overview
+            </h1>
+            <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-txt-muted">
+              Five read-outs on this statement, parsed locally. Scroll the stack or jump from the
+              rail; the tape above tracks what you're looking at.
+            </p>
           </div>
 
           <div className="space-y-14">

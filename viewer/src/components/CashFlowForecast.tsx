@@ -4,6 +4,7 @@ import axios from 'axios';
 import api from '@/lib/api';
 import type { ForecastResponse } from '@/types';
 import { inr as fmt } from '@/lib/utils';
+import { Counter } from './Counter';
 import { Loading, ErrorState, Empty } from './States';
 
 interface Props {
@@ -61,12 +62,12 @@ export function CashFlowForecast({ sessionId }: Props) {
       {/* headline numbers — KPI strip with hairline dividers, not boxes */}
       <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="p-4">
-          <div className="kpi-label text-info"><Calendar className="h-3.5 w-3.5" /><span>Next 30 days</span></div>
-          <div className="kpi-value text-info">{fmt(data.next_30_day_total)}</div>
+          <div className="kpi-label"><Calendar className="h-3.5 w-3.5" /><span>Next 30 days</span></div>
+          <div className="kpi-value"><Counter value={data.next_30_day_total} format={fmt} /></div>
         </div>
         <div className="p-4">
           <div className="kpi-label text-accent-light"><Target className="h-3.5 w-3.5" /><span>Next month</span></div>
-          <div className="kpi-value text-accent-light">{fmt(data.next_month_total)}</div>
+          <div className="kpi-value text-accent-light"><Counter value={data.next_month_total} format={fmt} /></div>
         </div>
         <div className="p-4">
           <div className="kpi-label"><Activity className="h-3.5 w-3.5" /><span>History</span></div>

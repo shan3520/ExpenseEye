@@ -28,7 +28,7 @@ export function ThemeToggle({ withLabel = false, className }: { withLabel?: bool
     } catch {
       /* storage unavailable — theme still applies for the session */
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isLight ? '#f4f6fb' : '#080d18');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isLight ? '#f1f4f9' : '#05080e');
   }, [theme]);
 
   const toggle = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));

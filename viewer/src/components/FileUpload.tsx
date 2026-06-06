@@ -68,7 +68,11 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
     <div className="w-full space-y-4">
       <div className="panel p-6 sm:p-7">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-txt">Import a statement</h2>
+          <div className="flex items-center gap-2.5">
+            <span className="live-dot" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-txt">Statement intake</h2>
+            <span className="font-mono text-micro uppercase tracking-wider text-brand">Ready</span>
+          </div>
           <span className="rounded border border-line px-1.5 py-0.5 font-mono text-micro text-txt-muted">CSV</span>
         </div>
 

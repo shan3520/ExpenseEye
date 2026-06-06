@@ -4,6 +4,7 @@ import axios from 'axios';
 import api from '@/lib/api';
 import type { CategorizeResponse, ModelCardResponse } from '@/types';
 import { inr as fmt } from '@/lib/utils';
+import { Counter } from './Counter';
 import { Loading, ErrorState, Empty } from './States';
 
 interface Props {
@@ -49,7 +50,7 @@ export function TransactionCategories({ sessionId }: Props) {
       <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="p-4">
           <div className="kpi-label"><Cpu className="h-3.5 w-3.5" /><span>Model coverage</span></div>
-          <div className="kpi-value text-brand">{modelPct}%</div>
+          <div className="kpi-value text-brand"><Counter value={modelPct} format={(n) => `${Math.round(n)}%`} /></div>
           <p className="mt-1 font-mono text-micro text-txt-faint">{data.counts.model}/{data.counts.total} classified</p>
         </div>
         <div className="p-4">
