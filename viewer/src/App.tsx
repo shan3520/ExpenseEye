@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
 import { LogOut, TrendingUp, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
-import { SessionTape } from '@/components/SessionTape';
+import { SessionTape, shortId } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
 import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
 import { CashFlowForecast } from '@/components/CashFlowForecast';
@@ -209,7 +209,7 @@ function App() {
                 href={`#${m.id}`}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-colors',
+                  'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-colors active:translate-y-px',
                   active
                     ? 'border-brand bg-brand/[0.15] font-semibold text-txt'
                     : 'border-transparent font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
@@ -241,14 +241,14 @@ function App() {
             href={REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt"
+            className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt active:translate-y-px"
           >
             <GithubMark className="h-4 w-4 text-txt-muted" />
             <span>Source</span>
           </a>
           <button
             onClick={handleLogout}
-            className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer"
+            className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger active:translate-y-px cursor-pointer"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />
             <span>End session</span>
@@ -269,7 +269,7 @@ function App() {
             <ThemeToggle />
             <button
               onClick={handleLogout}
-              className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer"
+              className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger active:translate-y-px cursor-pointer"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               End
@@ -283,8 +283,8 @@ function App() {
               href={`#${m.id}`}
               aria-current={activeId === m.id ? 'true' : undefined}
               className={cn(
-                'flex min-h-[40px] shrink-0 items-center rounded-md px-3 text-data font-medium transition-colors',
-                activeId === m.id ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted'
+                'flex min-h-[40px] shrink-0 items-center rounded-md px-3 text-data font-medium transition-colors active:translate-y-px',
+                activeId === m.id ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted hover:text-txt active:bg-tint-2'
               )}
             >
               {m.nav}
@@ -313,10 +313,20 @@ function App() {
             ))}
           </div>
 
+          {/* Dashboard footer: a status line, not the landing's prose sign-off.
+              Echoes the live session (same handle as the tape's SES cell) so the
+              board is bracketed top and bottom by its own telemetry. */}
           <footer className="mt-16 border-t border-line pt-6">
-            <div className="flex flex-col gap-2 text-xs text-txt-faint sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                Processed locally · files deleted when the session ends · nothing stored or shared.
+            <div className="flex flex-col gap-3 text-xs text-txt-faint sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 text-txt-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                  Session {shortId(sessionId)}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>{MODULES.length} modules loaded</span>
+                <span aria-hidden="true">·</span>
+                <span>parsed locally, nothing stored</span>
               </p>
               <p className="font-mono">ExpenseEye · {new Date().getFullYear()}</p>
             </div>
@@ -357,7 +367,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
               href={REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-11 w-11 items-center justify-center text-txt-faint transition-colors hover:text-txt"
+              className="flex h-11 w-11 items-center justify-center text-txt-faint transition-colors hover:text-txt active:translate-y-px"
               aria-label="GitHub repository"
             >
               <GithubMark className="h-5 w-5" />

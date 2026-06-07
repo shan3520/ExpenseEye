@@ -10,7 +10,7 @@ interface SessionTapeProps {
 }
 
 /** Short, stable, human-scannable handle for a session id. */
-function shortId(id: string): string {
+export function shortId(id: string): string {
   const clean = id.replace(/[^a-z0-9]/gi, '');
   return (clean.slice(0, 8) || 'SESSION').toUpperCase();
 }

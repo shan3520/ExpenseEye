@@ -42,7 +42,7 @@ export function ThemeToggle({ withLabel = false, className }: { withLabel?: bool
         type="button"
         onClick={toggle}
         className={cn(
-          'flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt cursor-pointer',
+          'flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt active:translate-y-px cursor-pointer',
           className
         )}
       >
@@ -59,7 +59,7 @@ export function ThemeToggle({ withLabel = false, className }: { withLabel?: bool
       aria-label={label}
       title={label}
       className={cn(
-        'flex h-11 w-11 items-center justify-center rounded-md text-txt-faint transition-colors hover:bg-tint-2 hover:text-txt cursor-pointer',
+        'flex h-11 w-11 items-center justify-center rounded-md text-txt-faint transition-colors hover:bg-tint-2 hover:text-txt active:translate-y-px cursor-pointer',
         className
       )}
     >

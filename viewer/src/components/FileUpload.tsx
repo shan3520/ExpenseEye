@@ -107,11 +107,11 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                 <FileText className="h-5 w-5 flex-shrink-0 text-brand" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-txt">{file.name}</p>
-                  <p className="font-mono text-micro text-txt-faint">{(file.size / 1024).toFixed(1)} KB</p>
+                  <p className="font-mono text-micro text-txt-muted">{(file.size / 1024).toFixed(1)} KB</p>
                 </div>
                 <button
                   onClick={clearFile}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-tint-3 hover:text-txt cursor-pointer"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-tint-3 hover:text-txt active:translate-y-px cursor-pointer"
                   disabled={isUploading}
                   aria-label="Remove file"
                 >
