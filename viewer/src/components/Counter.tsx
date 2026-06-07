@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { gsap, STANDARD_EASE } from '@/lib/motion';
 
 interface CounterProps {
   /** Target value to settle on. */
@@ -12,40 +13,46 @@ interface CounterProps {
 }
 
 /**
- * A readout that rolls up from zero to `value` on mount — the instrument-grade
- * "data just landed" feedback for KPI figures. Animates a single state value
- * via requestAnimationFrame (not per-frame React churn across a tree), and
- * snaps straight to the final value when the user prefers reduced motion.
+ * A readout that counts up from zero to `value` the first time it scrolls into
+ * view (IntersectionObserver, not a scroll listener). The tween runs on a plain
+ * proxy object via gsap.to, formatting each frame through `format` in onUpdate,
+ * so currency grouping stays correct mid-roll. Fires once. Under reduced motion
+ * the final value renders immediately with no tween.
  */
-export function Counter({ value, format = (n) => String(Math.round(n)), duration = 900, className }: CounterProps) {
+export function Counter({ value, format = (n) => String(Math.round(n)), duration = 1200, className }: CounterProps) {
   const reduce = useReducedMotion();
-  const [display, setDisplay] = useState(0);
-  const frame = useRef<number | null>(null);
+  const [display, setDisplay] = useState(reduce ? value : 0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const hasRun = useRef(false);
 
   useEffect(() => {
-    // Reduced motion: skip the roll entirely. The final value is shown directly
-    // at render time, so there is nothing to animate or set here.
+    // Reduced motion: the final value is rendered directly (see JSX), so there's
+    // nothing to tween or set here.
     if (reduce) return;
+    const el = ref.current;
+    if (!el || hasRun.current) return;
 
-    const start = performance.now();
-    const from = 0;
-    // easeOutExpo — fast to settle, like a gauge needle finding its mark.
-    const ease = (t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t));
-
-    const tick = (now: number) => {
-      const t = Math.min((now - start) / duration, 1);
-      setDisplay(from + (value - from) * ease(t));
-      if (t < 1) frame.current = requestAnimationFrame(tick);
-    };
-    frame.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (frame.current != null) cancelAnimationFrame(frame.current);
-    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting) || hasRun.current) return;
+        hasRun.current = true;
+        io.disconnect();
+        const proxy = { n: 0 };
+        gsap.to(proxy, {
+          n: value,
+          duration: duration / 1000,
+          ease: STANDARD_EASE,
+          onUpdate: () => setDisplay(proxy.n),
+        });
+      },
+      { threshold: 0.1 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, [value, duration, reduce]);
 
   return (
-    <span className={className} data-money>
+    <span ref={ref} className={className} data-money>
       {format(reduce ? value : display)}
     </span>
   );

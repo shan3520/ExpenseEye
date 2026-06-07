@@ -81,11 +81,22 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           className={cn(
             // border-style flips dashed → solid on hover/drag; border-color
             // animates over 0.3s for the soft solidify the brief calls for.
-            'rounded-md border-2 p-6 transition-[border-color,background-color,box-shadow] duration-300 ease-out',
+            'rounded-md border-2 p-6',
             isDragging
               ? 'is-dragging border-solid border-brand bg-brand/[0.06] ring-2 ring-brand/40'
               : 'border-dashed border-brand/30 bg-brand/[0.03] hover:border-solid hover:border-brand'
           )}
+          // Transform handled inline so border/bg keep their ease-out while the
+          // scale lifts on dragover (standard ease) and settles with a slight
+          // spring overshoot on release. Reduced motion neutralizes both via the
+          // global transition-duration override.
+          style={{
+            transform: isDragging ? 'scale(1.01)' : 'scale(1)',
+            willChange: isDragging ? 'transform' : 'auto',
+            transition: isDragging
+              ? 'transform 200ms cubic-bezier(0.32,0.72,0,1), border-color 300ms ease-out, background-color 300ms ease-out, box-shadow 300ms ease-out'
+              : 'transform 300ms cubic-bezier(0.34,1.56,0.64,1), border-color 300ms ease-out, background-color 300ms ease-out, box-shadow 300ms ease-out',
+          }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}

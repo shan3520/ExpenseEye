@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import type { ComponentType } from 'react';
 // Phosphor Light across the whole app now — one icon language, finer line weight.
 import {
@@ -25,8 +25,11 @@ import { CashFlowForecast } from '@/components/CashFlowForecast';
 import { TransactionCategories } from '@/components/TransactionCategories';
 import { AnomalyDetection } from '@/components/AnomalyDetection';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useInView } from '@/lib/useInView';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import { useSmoothScroll } from '@/lib/useSmoothScroll';
+import { useMagneticTilt } from '@/lib/useMagneticTilt';
+import { gsap, ScrollTrigger, STANDARD_EASE } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 /** GitHub mark — inlined as a brand glyph so it stays exact across themes. */
@@ -143,20 +146,28 @@ function ModuleHeader({ mod }: { mod: ModuleDef }) {
   );
 }
 
-/** One bento tile: header + panel, sprung into view on first scroll-in. The
-    `index` gives the opening rows a short cascade; later tiles reveal as reached. */
-function ModuleCard({ mod, sessionId, index }: { mod: ModuleDef; sessionId: string; index: number }) {
-  const { ref, inView } = useInView<HTMLElement>();
+/** One bento tile: header + panel. Entrance is handled by the grid's GSAP
+    stagger (data-module-card); on desktop pointers the card tilts toward the
+    cursor (perspective on the section, rotation on the tray). */
+function ModuleCard({ mod, sessionId }: { mod: ModuleDef; sessionId: string }) {
+  const tiltRef = useMagneticTilt<HTMLElement>(3);
   return (
     <section
-      ref={ref}
+      ref={tiltRef}
       id={mod.id}
-      data-reveal={inView ? 'in' : 'out'}
-      style={{ transitionDelay: `${Math.min(index, 3) * 80}ms` }}
+      data-module-card
+      style={{ perspective: '800px' }}
       className={cn('scroll-mt-28 lg:scroll-mt-24', mod.span)}
     >
       <ModuleHeader mod={mod} />
-      <div className="rounded-2xl border border-line bg-tint-1 p-1.5">
+      {/* Double-bezel: an outer tray (subtle bg + hairline) cradles the data
+          panel, whose own border + inset top-highlight + concentric radius make
+          it read as a machined plate seated in the tray. The tray is the tilt
+          target so the label above stays put while the card leans. */}
+      <div
+        data-tilt-target
+        className="rounded-2xl border border-line bg-tint-1 p-1.5"
+      >
         <div className="panel rounded-[0.875rem] p-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] sm:p-6">
           {mod.render(sessionId)}
         </div>
@@ -173,6 +184,18 @@ function App() {
   const [activeId, setActiveId] = useState<string>(MODULES[0].id);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // Motion gating. Lenis smooth scroll only on a desktop pointer, a non-mobile
+  // viewport, and when the user hasn't asked for reduced motion — touch and
+  // reduced-motion get native scroll.
+  const reduce = useReducedMotion();
+  const pointerFine = useMediaQuery('(pointer: fine)');
+  const notMobile = useMediaQuery('(min-width: 769px)');
+  useSmoothScroll(pointerFine && notMobile && !reduce);
+
+  // Dashboard bento entrance: stagger the module cards in once per session.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const animatedSession = useRef<string | null>(null);
+
   const handleUploadSuccess = (id: string) => {
     setSessionId(id);
     setBooting(true);
@@ -183,6 +206,29 @@ function App() {
     setBooting(false);
     setActiveId(MODULES[0].id);
   };
+
+  // (5) Module cards entrance — left-to-right, top-to-bottom (DOM order), once
+  // per session. useLayoutEffect sets the hidden start state before paint so the
+  // cards never flash in at full opacity first. Reduced motion shows them as-is.
+  useLayoutEffect(() => {
+    if (!sessionId || booting) return;
+    if (animatedSession.current === sessionId) return;
+    const grid = gridRef.current;
+    if (!grid) return;
+    animatedSession.current = sessionId;
+    const cards = grid.querySelectorAll('[data-module-card]');
+    if (reduce || !cards.length) return;
+    const ctx = gsap.context(() => {
+      gsap.from(cards, {
+        opacity: 0,
+        y: 20,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: STANDARD_EASE,
+      });
+    }, grid);
+    return () => ctx.revert();
+  }, [sessionId, booting, reduce]);
 
   // Scroll-spy: highlight the module currently in view. Re-runs once booting
   // clears so it observes the modules that mount with the dashboard.
@@ -357,9 +403,9 @@ function App() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-x-6 gap-y-8 lg:grid-cols-5 lg:items-start">
-            {MODULES.map((mod, i) => (
-              <ModuleCard key={mod.id} mod={mod} sessionId={sessionId} index={i} />
+          <div ref={gridRef} className="grid grid-cols-1 gap-x-6 gap-y-8 lg:grid-cols-5 lg:items-start">
+            {MODULES.map((mod) => (
+              <ModuleCard key={mod.id} mod={mod} sessionId={sessionId} />
             ))}
           </div>
 
@@ -547,11 +593,17 @@ function ConsolePreview() {
               projected
             </span>
           </div>
-          <div className="flex h-20 items-end gap-1.5">
+          {/* pointer-events re-enabled here (the preview is otherwise inert) so
+              each bar can lift on hover — transform-only, neutralized under
+              reduced motion by the global transition override. */}
+          <div className="pointer-events-auto flex h-20 items-end gap-1.5">
             {bars.map((h, i) => (
               <div
                 key={i}
-                className={cn('flex-1 rounded-sm', i >= 9 ? 'bg-accent/35' : 'bg-brand/25')}
+                className={cn(
+                  'flex-1 origin-bottom rounded-sm transition-transform duration-200 ease-out hover:scale-y-110',
+                  i >= 9 ? 'bg-accent/35 hover:bg-accent/55' : 'bg-brand/25 hover:bg-brand/45'
+                )}
                 style={{ height: `${h}%` }}
               />
             ))}
@@ -619,7 +671,8 @@ function PrivacyTrust() {
   return (
     <section
       aria-labelledby="privacy-heading"
-      className="mt-20 animate-fade-rise border-t border-line pt-12 [animation-delay:240ms] lg:mt-28 lg:pt-16"
+      data-anim="privacy-section"
+      className="mt-20 border-t border-line pt-12 lg:mt-28 lg:pt-16"
     >
       {/* Open-source credibility — the verifiable signals scroll as one seamless,
           edge-faded loop (CSS-only, pauses on hover). Decorative repetition, so
@@ -670,7 +723,7 @@ function PrivacyTrust() {
           stack beside it. On mobile all three fall to a plain icon + h3 + p
           stack, no backgrounds. */}
       <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <div className="sm:col-span-2 sm:rounded-xl sm:bg-brand/[0.04] sm:p-6">
+        <div data-anim="privacy-lead" className="sm:col-span-2 sm:rounded-xl sm:bg-brand/[0.04] sm:p-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1 sm:h-14 sm:w-14">
             <ShieldCheck className="h-6 w-6 text-brand sm:h-7 sm:w-7" aria-hidden="true" />
           </div>
@@ -684,7 +737,7 @@ function PrivacyTrust() {
 
         <div className="grid gap-6 sm:col-span-1 sm:grid-rows-2">
           {guarantees.slice(1).map(({ icon: Icon, title, body }) => (
-            <div key={title}>
+            <div key={title} data-anim="privacy-card">
               <div className="flex h-10 w-10 items-center justify-center rounded-md border border-line bg-tint-1">
                 <Icon className="h-[18px] w-[18px] text-brand" aria-hidden="true" />
               </div>
@@ -701,53 +754,21 @@ function PrivacyTrust() {
 }
 
 /**
- * Tracks whether the page has scrolled past `offset` pixels — used to give the
- * floating nav pill a ring + shadow once it detaches from the top. Implemented
- * with an IntersectionObserver on a top sentinel (no scroll listener, so no
- * per-frame reflow): when the `offset`-tall marker leaves the viewport, we're
- * past it. Returns a ref to attach to the sentinel.
- */
-function useScrolled() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting), {
-      threshold: 0,
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return { ref, scrolled };
-}
-
-/**
- * One capability in the hero's 2×2 grid. Each lifts into view on first scroll-in
- * (IntersectionObserver via useInView), staggered 100ms by row index through the
- * shared `[data-reveal]` transition. The reveal transform lives on the <li>; the
- * hover nudge lives on an inner wrapper so the two never fight over `transform`.
- * Neutralized under the global reduced-motion block.
+ * One capability in the hero's 2×2 grid. Entrance is driven by the hero GSAP
+ * timeline (data-anim="feature", staggered on load); this component owns only
+ * the hover nudge. `.will-animate` keeps it hidden until the timeline runs.
  */
 function CapabilityItem({
   icon: Icon,
   label,
   note,
-  index,
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
   note: string;
-  index: number;
 }) {
-  const { ref, inView } = useInView<HTMLLIElement>();
   return (
-    <li
-      ref={ref}
-      data-reveal={inView ? 'in' : 'out'}
-      style={{ transitionDelay: `${index * 100}ms` }}
-      className="group cursor-default"
-    >
+    <li data-anim="feature" className="will-animate group cursor-default">
       <div className="flex items-center gap-3 transition-transform duration-200 ease-out group-hover:translate-x-1">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-tint-1 transition-colors duration-200 group-hover:border-line-strong">
           <Icon
@@ -776,25 +797,97 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
   ];
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const { ref: sentinelRef, scrolled } = useScrolled();
+  // (8) Nav scroll state, driven by a ScrollTrigger in the effect below.
+  const [scrolled, setScrolled] = useState(false);
+  const reduce = useReducedMotion();
+  const rootRef = useRef<HTMLDivElement>(null);
+  // (10) The console preview tilts toward the cursor on desktop pointers.
+  const previewTiltRef = useMagneticTilt<HTMLDivElement>(3);
+
+  // Landing motion: (2) the hero load timeline, (8) the nav scroll state, and
+  // (4) the "Private by architecture" scroll reveals. All scoped to a gsap
+  // context so a single revert() on unmount kills every tween + ScrollTrigger.
+  // useLayoutEffect sets hidden start states before paint (with .will-animate as
+  // the pre-JS guard). Reduced motion: nav state still tracks, everything else
+  // snaps visible.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const ctx = gsap.context(() => {
+      // (8) Floating nav — prominent at the top, recedes once past 80px.
+      ScrollTrigger.create({
+        trigger: document.documentElement,
+        start: 'top top',
+        end: 'bottom bottom',
+        onUpdate: (self) => setScrolled(self.scroll() > 80),
+      });
+
+      if (reduce) {
+        gsap.set('.will-animate', { opacity: 1, clearProps: 'transform' });
+        return;
+      }
+
+      // (2) Hero load stagger. Neutralize .will-animate first so each .from()
+      // resolves to the visible end state, then tween up from hidden.
+      gsap.set('[data-anim]', { opacity: 1 });
+      const tl = gsap.timeline({ defaults: { ease: STANDARD_EASE } });
+      tl.from('[data-anim="nav"]', { opacity: 0, y: -8, duration: 0.6 }, 0)
+        .from('[data-anim="headline"]', { opacity: 0, y: 24, duration: 0.8 }, 0.15)
+        .from('[data-anim="subtext"]', { opacity: 0, y: 16, duration: 0.7 }, 0.3)
+        .from('[data-anim="feature"]', { opacity: 0, y: 12, duration: 0.6, stagger: 0.12 }, 0.45)
+        .from('[data-anim="upload"]', { opacity: 0, y: 16, duration: 0.7 }, 0.5)
+        .from('[data-anim="preview"]', { opacity: 0, scale: 0.96, duration: 0.9 }, 0.2);
+
+      // (4) Private by architecture — lead card scrubs 0.4 → 1 as it enters;
+      // the two stacked cards rise + fade with a 150ms stagger at 80% in view.
+      const lead = root.querySelector('[data-anim="privacy-lead"]');
+      if (lead) {
+        gsap.fromTo(
+          lead,
+          { opacity: 0.4 },
+          {
+            opacity: 1,
+            ease: 'none',
+            scrollTrigger: { trigger: lead, start: 'top 85%', end: 'top 45%', scrub: true },
+          }
+        );
+      }
+      const rightCards = root.querySelectorAll('[data-anim="privacy-card"]');
+      const privacy = root.querySelector('[data-anim="privacy-section"]');
+      if (rightCards.length && privacy) {
+        gsap.from(rightCards, {
+          opacity: 0,
+          y: 32,
+          duration: 0.7,
+          stagger: 0.15,
+          ease: STANDARD_EASE,
+          scrollTrigger: { trigger: privacy, start: 'top 80%' },
+        });
+      }
+
+      // Recompute trigger positions once everything is laid out.
+      ScrollTrigger.refresh();
+    }, root);
+
+    return () => ctx.revert();
+  }, [reduce]);
 
   return (
     // Phosphor Light weight for every icon on the landing surface (the dashboard
     // keeps its own lucide set). One context beats threading `weight` per icon.
     <IconContext.Provider value={{ weight: 'light' }}>
-      <div className="relative flex min-h-dvh flex-col">
-        {/* Scroll sentinel: an 80px marker at the very top. When it leaves the
-            viewport the nav pill earns its ring + shadow. */}
-        <div ref={sentinelRef} aria-hidden="true" className="absolute left-0 top-0 h-20 w-px" />
-
+      <div ref={rootRef} className="relative flex min-h-dvh flex-col">
         {/* Floating glass-pill nav — detached from the top, the one place glass is
             allowed. Sticks with a 20px gap held by the wrapper's padding (not a
-            margin, which would collapse on stick). */}
+            margin, which would collapse on stick). Prominent at the top, recedes
+            (ring/shadow off) once scrolled past 80px — toggled by ScrollTrigger. */}
         <header className="sticky top-0 z-30 px-4 pt-5">
           <div
+            data-anim="nav"
             className={cn(
-              'mx-auto flex w-full max-w-2xl items-center justify-between gap-6 rounded-full border border-line bg-header px-5 py-2.5 backdrop-blur-xl transition-shadow duration-300 sm:w-max sm:gap-12 sm:px-6 sm:py-3',
-              scrolled && 'shadow-panel ring-1 ring-line-strong'
+              'will-animate mx-auto flex w-full max-w-2xl items-center justify-between gap-6 rounded-full border border-line bg-header px-5 py-2.5 backdrop-blur-xl transition-[box-shadow] duration-[400ms] ease-out sm:w-max sm:gap-12 sm:px-6 sm:py-3',
+              scrolled ? 'shadow-none ring-0' : 'shadow-panel ring-1 ring-line-strong'
             )}
           >
             <div className="flex items-center gap-2.5">
@@ -873,42 +966,49 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
           <div className="grid grid-cols-1 items-center gap-x-16 gap-y-14 lg:grid-cols-2">
             {/* Left — positioning + the intake instrument */}
             <div className="min-w-0">
-              <div className="animate-fade-rise">
-                <h1 className="max-w-4xl font-display text-[2.75rem] font-bold leading-[1.03] tracking-[-0.03em] text-txt text-balance sm:text-6xl">
+              <div>
+                <h1 data-anim="headline" className="will-animate max-w-4xl font-display text-[2.75rem] font-bold leading-[1.03] tracking-[-0.03em] text-txt text-balance sm:text-6xl">
                   Drop. Parse.
                   <br />
                   <span className="text-brand">Know.</span>
                 </h1>
-                <p className="mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
+                <p data-anim="subtext" className="will-animate mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
                   Drop in a bank statement and ExpenseEye reads it the way an analyst would:
                   forecasting next month, flagging the charges that don't fit, and surfacing the
                   subscriptions you forgot about.
                 </p>
 
-                {/* Capability grid — a true 2×2 on sm+, each row revealing on a
-                    100ms stagger. Stacks to one column on mobile. */}
+                {/* Capability grid — a true 2×2 on sm+, each row staggered in by
+                    the hero load timeline. Stacks to one column on mobile. */}
                 <ul className="mt-9 grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-                  {capabilities.map(({ icon, label, note }, i) => (
-                    <CapabilityItem key={label} icon={icon} label={label} note={note} index={i} />
+                  {capabilities.map(({ icon, label, note }) => (
+                    <CapabilityItem key={label} icon={icon} label={label} note={note} />
                   ))}
                 </ul>
               </div>
 
               {/* The instrument */}
-              <div className="mt-10 max-w-xl animate-fade-rise [animation-delay:80ms]">
+              <div data-anim="upload" className="will-animate mt-10 max-w-xl">
                 <FileUpload onUploadSuccess={onUploadSuccess} />
               </div>
             </div>
 
             {/* Right — a stylized peek at the board the upload unlocks, set in a
                 double-bezel shell (aluminium tray + glass plate) over a soft
-                phosphor glow so it reads as physical hardware, not a flat mock. */}
-            <div className="animate-fade-rise relative mx-auto w-full min-w-0 max-w-md [animation-delay:160ms] lg:max-w-none">
+                phosphor glow so it reads as physical hardware, not a flat mock.
+                Scales in on load (data-anim) and tilts toward the cursor on
+                desktop pointers (perspective here, rotation on the tray). */}
+            <div
+              ref={previewTiltRef}
+              data-anim="preview"
+              style={{ perspective: '800px' }}
+              className="will-animate relative mx-auto w-full min-w-0 max-w-md lg:max-w-none"
+            >
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -inset-4 rounded-[3rem] bg-brand/[0.08] blur-3xl"
               />
-              <div className="relative rounded-[2rem] border border-line bg-tint-1 p-2">
+              <div data-tilt-target className="relative rounded-[2rem] border border-line bg-tint-1 p-2">
                 <div className="overflow-hidden rounded-[1.5rem]">
                   <ConsolePreview />
                 </div>

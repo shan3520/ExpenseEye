@@ -225,6 +225,12 @@ h1, h2, h3, h4 {
   transform: translateY(0);
 }
 
+/* Elements the GSAP load timeline drives start hidden so there's no flash of
+   content before the script runs; GSAP writes inline opacity once it takes over.
+   Under reduced motion (or if the tween never runs) they must stay visible — the
+   !important below is the hard safety net against content stuck at opacity 0. */
+.will-animate { opacity: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {
@@ -232,6 +238,7 @@ h1, h2, h3, h4 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .will-animate { opacity: 1 !important; }
 }
 
 @layer components {
