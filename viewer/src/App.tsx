@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
-// Dashboard (post-upload) keeps its lucide set; the landing surface below uses
-// Phosphor Light icons for a finer, more distinct line weight.
-import { LogOut, TrendingUp, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
+// Phosphor Light across the whole app now — one icon language, finer line weight.
 import {
   IconContext,
   TrendUp,
@@ -13,6 +11,11 @@ import {
   Cpu,
   Lock,
   TrendDown,
+  Tag,
+  Warning,
+  CalendarDots,
+  ChartBar,
+  SignOut,
 } from '@phosphor-icons/react';
 import { FileUpload } from '@/components/FileUpload';
 import { SessionTape, shortId } from '@/components/SessionTape';
@@ -26,7 +29,7 @@ import { useInView } from '@/lib/useInView';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { cn } from '@/lib/utils';
 
-/** GitHub mark (not in this lucide-react build, so inlined). */
+/** GitHub mark — inlined as a brand glyph so it stays exact across themes. */
 function GithubMark({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -73,7 +76,7 @@ const MODULES: ModuleDef[] = [
     nav: 'Forecast',
     title: 'Cash-Flow Forecast',
     desc: 'Projected spend for the coming month, with a back-tested error margin.',
-    icon: TrendingUp,
+    icon: TrendUp,
     ml: true,
     span: 'lg:col-span-3',
     render: (s) => <CashFlowForecast sessionId={s} />,
@@ -83,7 +86,7 @@ const MODULES: ModuleDef[] = [
     nav: 'Categories',
     title: 'Smart Categorization',
     desc: 'Every transaction sorted by a trained model, with a rule-based fallback.',
-    icon: Tags,
+    icon: Tag,
     ml: true,
     span: 'lg:col-span-2',
     render: (s) => <TransactionCategories sessionId={s} />,
@@ -93,7 +96,7 @@ const MODULES: ModuleDef[] = [
     nav: 'Anomalies',
     title: 'Anomaly Detection',
     desc: 'Charges that fall outside your normal pattern, ranked by how far they deviate.',
-    icon: ShieldAlert,
+    icon: Warning,
     ml: true,
     span: 'lg:col-span-2',
     render: (s) => <AnomalyDetection sessionId={s} />,
@@ -103,7 +106,7 @@ const MODULES: ModuleDef[] = [
     nav: 'Subscriptions',
     title: 'Recurring Subscriptions',
     desc: 'Regular payments detected from the cadence of your statement.',
-    icon: CalendarClock,
+    icon: CalendarDots,
     span: 'lg:col-span-3',
     render: (s) => <SubscriptionsTable sessionId={s} />,
   },
@@ -112,7 +115,7 @@ const MODULES: ModuleDef[] = [
     nav: 'Overspending',
     title: 'Overspending Analysis',
     desc: 'Months that ran hot against your trailing three-month baseline.',
-    icon: BarChart3,
+    icon: ChartBar,
     span: 'lg:col-span-5',
     render: (s) => <OverspendingAnalysis sessionId={s} />,
   },
@@ -126,12 +129,14 @@ function ModuleHeader({ mod }: { mod: ModuleDef }) {
   return (
     <header className="mb-5">
       <div className="flex items-center gap-2.5">
-        <span className="module-rail" aria-hidden="true" />
-        <Icon className="h-[18px] w-[18px] text-txt-muted" aria-hidden="true" />
+        <span className="module-rail h-5" aria-hidden="true" />
+        <Icon className="h-5 w-5 text-txt-muted" aria-hidden="true" />
         <h2 className="font-display text-subhead font-semibold tracking-tight text-txt">
           {mod.title}
         </h2>
-        {mod.ml && <span className="tag-ml">ML</span>}
+        {mod.ml && (
+          <span className="tag-ml drop-shadow-[0_0_6px_rgb(var(--accent-rgb)/_0.4)]">ML</span>
+        )}
       </div>
       <p className="mt-2 max-w-[68ch] pl-[14px] text-sm leading-relaxed text-txt-muted text-pretty">{mod.desc}</p>
     </header>
@@ -151,7 +156,11 @@ function ModuleCard({ mod, sessionId, index }: { mod: ModuleDef; sessionId: stri
       className={cn('scroll-mt-28 lg:scroll-mt-24', mod.span)}
     >
       <ModuleHeader mod={mod} />
-      <div className="panel p-5 sm:p-6">{mod.render(sessionId)}</div>
+      <div className="rounded-2xl border border-line bg-tint-1 p-1.5">
+        <div className="panel rounded-[0.875rem] p-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] sm:p-6">
+          {mod.render(sessionId)}
+        </div>
+      </div>
     </section>
   );
 }
@@ -210,9 +219,16 @@ function App() {
   const activeLabel = MODULES.find((m) => m.id === activeId)?.nav ?? MODULES[0].nav;
 
   return (
+    // Phosphor Light for the whole dashboard surface (sidebar, modules, states).
+    <IconContext.Provider value={{ weight: 'light' }}>
     <div className="min-h-dvh lg:flex">
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 z-20 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-header backdrop-blur-sm lg:flex">
+      <aside className="sticky top-0 z-20 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-header backdrop-blur-sm lg:flex relative isolate">
+        {/* faint vertical phosphor wash for depth, behind the nav content */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-brand/[0.02] to-transparent"
+        />
         <div className="flex h-16 items-center gap-2.5 border-b border-line px-5">
           <EyeMark className="h-7 w-7 text-txt" />
           <div className="leading-none">
@@ -238,9 +254,9 @@ function App() {
                 href={`#${m.id}`}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-colors active:translate-y-px',
+                  'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-all duration-200 ease-out active:translate-y-px',
                   active
-                    ? 'border-brand bg-brand/[0.15] font-semibold text-txt'
+                    ? 'border-brand bg-brand/[0.15] font-semibold text-txt shadow-[inset_0_0_12px_rgb(var(--brand-rgb)/_0.05)]'
                     : 'border-transparent font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
                 )}
               >
@@ -264,22 +280,22 @@ function App() {
           })}
         </nav>
 
-        <div className="space-y-1 border-t border-line p-3">
+        <div className="space-y-0.5 border-t border-line p-3">
           <ThemeToggle withLabel />
           <a
             href={REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt active:translate-y-px"
+            className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-all duration-150 ease-out hover:bg-tint-2 hover:text-txt active:translate-y-px"
           >
             <GithubMark className="h-4 w-4 text-txt-muted" />
             <span>Source</span>
           </a>
           <button
             onClick={handleLogout}
-            className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger active:translate-y-px cursor-pointer"
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-txt-muted transition-all duration-150 ease-out hover:bg-danger/10 hover:text-danger active:translate-y-px cursor-pointer"
           >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <SignOut className="h-4 w-4" aria-hidden="true" />
             <span>End session</span>
           </button>
         </div>
@@ -298,27 +314,32 @@ function App() {
             <ThemeToggle />
             <button
               onClick={handleLogout}
-              className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger active:translate-y-px cursor-pointer"
+              className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-all duration-150 ease-out hover:bg-danger/10 hover:text-danger active:translate-y-px cursor-pointer"
             >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
+              <SignOut className="h-4 w-4" aria-hidden="true" />
               End
             </button>
           </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto border-t border-line px-3 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {MODULES.map((m) => (
-            <a
-              key={m.id}
-              href={`#${m.id}`}
-              aria-current={activeId === m.id ? 'true' : undefined}
-              className={cn(
-                'flex min-h-[40px] shrink-0 items-center rounded-md px-3 text-data font-medium transition-colors active:translate-y-px',
-                activeId === m.id ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted hover:text-txt active:bg-tint-2'
-              )}
-            >
-              {m.nav}
-            </a>
-          ))}
+          {MODULES.map((m) => {
+            const Icon = m.icon;
+            const active = activeId === m.id;
+            return (
+              <a
+                key={m.id}
+                href={`#${m.id}`}
+                aria-current={active ? 'true' : undefined}
+                className={cn(
+                  'flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-md px-3 text-data font-medium transition-all duration-150 ease-out active:translate-y-px',
+                  active ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted hover:text-txt active:bg-tint-2'
+                )}
+              >
+                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-brand' : 'text-txt-faint')} aria-hidden="true" />
+                {m.nav}
+              </a>
+            );
+          })}
         </nav>
       </header>
 
@@ -363,6 +384,7 @@ function App() {
         </main>
       </div>
     </div>
+    </IconContext.Provider>
   );
 }
 

@@ -305,10 +305,27 @@ h1, h2, h3, h4 {
   /* KPI strip cell (separated by hairline dividers, not individual boxes).
      Labels read as instrument legends: mono, uppercase, tracked out. */
   .kpi-label {
-    @apply flex items-center gap-2 font-mono text-micro font-medium uppercase tracking-wider text-txt-muted;
+    @apply flex items-center gap-2 font-mono text-micro font-medium uppercase tracking-widest text-txt-muted;
   }
   .kpi-value {
-    @apply mt-2.5 font-mono text-[1.7rem] font-semibold leading-none tracking-tight tabular-nums text-txt;
+    @apply mt-2.5 font-mono text-[1.9rem] font-semibold leading-none tracking-tight tabular-nums text-txt;
+  }
+  /* Delta chip beside a KPI (e.g. a vs-prior change). Pill, mono, signal-tinted. */
+  .kpi-delta {
+    @apply inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 font-mono text-[10px] font-medium tabular-nums text-brand;
+  }
+
+  /* Skeleton block — the shape-matching loading primitive. A pulsing tinted
+     surface that mirrors the data layout; collapses to a steady block under the
+     global reduced-motion rule (which neutralizes animate-pulse). */
+  .skeleton {
+    @apply animate-pulse rounded bg-tint-2;
+  }
+
+  /* Chart data point: animate the radius so it swells smoothly on hover. `r` is
+     CSS-animatable in modern engines; reduced-motion zeroes the duration. */
+  .chart-dot {
+    transition: r 150ms ease;
   }
 
   /* Data tables */

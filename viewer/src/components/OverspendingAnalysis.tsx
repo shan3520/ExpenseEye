@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
+import { TrendUp, ChartBar, Warning, CheckCircle } from '@phosphor-icons/react';
 import axios from 'axios';
 import api from '@/lib/api';
 import type { OverspendingResponse } from '@/types';
 import { cn, inr } from '@/lib/utils';
 import { Counter } from './Counter';
-import { Loading, ErrorState, Empty } from './States';
+import { ErrorState, Empty, SkeletonKpiTable } from './States';
 
 interface OverspendingAnalysisProps {
   sessionId: string;
@@ -30,10 +30,10 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
     if (sessionId) fetchOverspending();
   }, [sessionId]);
 
-  if (loading) return <Loading label="Comparing against baseline…" />;
+  if (loading) return <SkeletonKpiTable label="Comparing against baseline…" cols={6} rows={4} />;
   if (error) return <ErrorState message={error} />;
   if (!data?.success || !data.months || data.months.length === 0) return (
-    <Empty icon={TrendingUp} title="Insufficient data">
+    <Empty icon={TrendUp} title="Insufficient data">
       Needs at least four months: a three-month baseline plus one month to analyze.
     </Empty>
   );
@@ -42,11 +42,11 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
     <div className="space-y-6">
       <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="p-4">
-          <div className="kpi-label"><BarChart3 className="h-3.5 w-3.5" aria-hidden="true" /><span>Analyzed</span></div>
+          <div className="kpi-label"><ChartBar className="h-3.5 w-3.5" aria-hidden="true" /><span>Analyzed</span></div>
           <div className="kpi-value"><Counter value={data.summary.total_analyzed} /></div>
         </div>
         <div className="p-4">
-          <div className="kpi-label text-danger"><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /><span>Over</span></div>
+          <div className="kpi-label text-danger"><Warning className="h-3.5 w-3.5" aria-hidden="true" /><span>Over</span></div>
           <div className="kpi-value text-danger"><Counter value={data.summary.overspending_count} /></div>
         </div>
         <div className="p-4">
@@ -67,17 +67,17 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
             {data.months.map((month, idx) => {
               const isOverspending = month.status === 'OVERSPENDING';
               return (
-                <tr key={idx} className={cn('border-t border-line transition-colors', isOverspending ? 'hover:bg-danger/[0.06]' : 'hover:bg-tint-2')}>
+                <tr key={idx} className={cn('border-t border-line transition-all duration-150 ease-out', isOverspending ? 'hover:bg-danger/[0.06]' : 'hover:bg-tint-2')}>
                   <td className="px-4 py-3 whitespace-nowrap text-data font-medium text-txt">
                     {isOverspending && <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-danger align-middle" />}
                     {month.month}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt">{inr(month.spending)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt-muted">{inr(month.avg_spending)}</td>
-                  <td className={cn('px-4 py-3 whitespace-nowrap text-right font-mono text-data font-medium', month.pct_deviation > 0 ? 'text-danger' : 'text-success')}>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data tabular-nums text-txt">{inr(month.spending)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data tabular-nums text-txt-muted">{inr(month.avg_spending)}</td>
+                  <td className={cn('px-4 py-3 whitespace-nowrap text-right font-mono text-data font-medium tabular-nums', month.pct_deviation > 0 ? 'text-danger' : 'text-success')}>
                     {month.pct_deviation > 0 ? '+' : ''}{month.pct_deviation.toFixed(1)}%
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt-muted">{month.excess > 0 ? inr(month.excess) : '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data tabular-nums text-txt-muted">{month.excess > 0 ? inr(month.excess) : '—'}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">
                     <span className={cn('tag', isOverspending ? 'border border-danger/30 bg-danger/10 text-danger' : 'border border-success/30 bg-success/10 text-success')}>
                       {isOverspending ? 'Over' : 'Normal'}

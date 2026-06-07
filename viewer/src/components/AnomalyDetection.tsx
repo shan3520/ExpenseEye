@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle } from 'lucide-react';
+import { Warning, CheckCircle } from '@phosphor-icons/react';
 import axios from 'axios';
 import api from '@/lib/api';
 import type { AnomaliesResponse } from '@/types';
 import { inr as fmt } from '@/lib/utils';
-import { Loading, ErrorState, Empty } from './States';
+import { ErrorState, Empty, SkeletonTablePanel } from './States';
 
 interface Props {
   sessionId: string;
@@ -29,9 +29,9 @@ export function AnomalyDetection({ sessionId }: Props) {
     if (sessionId) run();
   }, [sessionId]);
 
-  if (loading) return <Loading label="Scanning for anomalies…" />;
+  if (loading) return <SkeletonTablePanel label="Scanning for anomalies…" cols={6} rows={4} />;
   if (error) return <ErrorState message={error} />;
-  if (!data?.success) return <Empty icon={ShieldAlert} title="No data to analyze" />;
+  if (!data?.success) return <Empty icon={Warning} title="No data to analyze" />;
 
   if (data.anomaly_count === 0) return (
     <div className="state-block border-success/25 bg-success/[0.06]">
@@ -62,12 +62,14 @@ export function AnomalyDetection({ sessionId }: Props) {
           </thead>
           <tbody>
             {data.anomalies.map((a, i) => (
-              <tr key={i} className="border-t border-line transition-colors hover:bg-danger/[0.06]">
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-data text-txt-muted">{a.txn_date}</td>
+              // Intentional left accent: these rows are flagged items, so the
+              // border carries meaning (not decoration). Amber signals "unusual".
+              <tr key={i} className="border-t border-l-2 border-line border-l-warning/60 transition-all duration-150 ease-out hover:bg-danger/[0.06]">
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-data tabular-nums text-txt-muted">{a.txn_date}</td>
                 <td className="px-4 py-3 text-data font-medium text-txt">{a.description}</td>
                 <td className="px-4 py-3 text-data capitalize text-txt-muted">{a.category}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data text-txt">{fmt(a.spend)}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data font-semibold text-danger">{a.z_score.toFixed(1)}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data font-medium tabular-nums text-warning">{fmt(a.spend)}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data font-semibold tabular-nums text-danger">{a.z_score.toFixed(1)}</td>
                 <td className="max-w-xs px-4 py-3 text-caption text-txt-muted">{a.explanation}</td>
               </tr>
             ))}

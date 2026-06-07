@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Tags, ChevronDown, Cpu, BookOpen } from 'lucide-react';
+import { Tag, CaretDown, Cpu, BookOpen } from '@phosphor-icons/react';
 import axios from 'axios';
 import api from '@/lib/api';
 import type { CategorizeResponse, ModelCardResponse } from '@/types';
 import { inr as fmt } from '@/lib/utils';
 import { Counter } from './Counter';
-import { Loading, ErrorState, Empty } from './States';
+import { ErrorState, Empty, SkeletonBars } from './States';
 
 interface Props {
   sessionId: string;
@@ -37,9 +37,9 @@ export function TransactionCategories({ sessionId }: Props) {
     if (sessionId) run();
   }, [sessionId]);
 
-  if (loading) return <Loading label="Categorizing transactions…" />;
+  if (loading) return <SkeletonBars rows={6} />;
   if (error) return <ErrorState message={error} />;
-  if (!data?.success) return <Empty icon={Tags} title="No transactions to categorize" />;
+  if (!data?.success) return <Empty icon={Tag} title="No transactions to categorize" />;
 
   const modelPct = data.counts.total ? Math.round((data.counts.model / data.counts.total) * 100) : 0;
   const maxSpend = Math.max(...data.breakdown.map((b) => b.total_spend), 1);
@@ -59,7 +59,7 @@ export function TransactionCategories({ sessionId }: Props) {
           <p className="mt-1 font-mono text-micro text-txt-faint">low-confidence rows</p>
         </div>
         <div className="p-4">
-          <div className="kpi-label"><Tags className="h-3.5 w-3.5" aria-hidden="true" /><span>Categories</span></div>
+          <div className="kpi-label"><Tag className="h-3.5 w-3.5" aria-hidden="true" /><span>Categories</span></div>
           <div className="kpi-value">{data.breakdown.length}</div>
           <p className="mt-1 font-mono text-micro text-txt-faint">detected</p>
         </div>
@@ -91,7 +91,7 @@ export function TransactionCategories({ sessionId }: Props) {
             className="flex w-full items-center justify-between px-4 py-3 text-data font-semibold text-txt transition-colors hover:bg-tint-2 cursor-pointer"
           >
             <span className="flex items-center gap-2"><Cpu className="h-4 w-4 text-txt-faint" aria-hidden="true" /> Model card &amp; evaluation</span>
-            <ChevronDown className={`h-4 w-4 text-txt-faint transition-transform ${showCard ? 'rotate-180' : ''}`} aria-hidden="true" />
+            <CaretDown className={`h-4 w-4 text-txt-faint transition-transform ${showCard ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
           {showCard && (
             <div id="model-card-panel" className="space-y-4 border-t border-line p-4">
