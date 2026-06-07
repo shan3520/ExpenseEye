@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
-import { LogOut, TrendingUp, TrendingDown, Tags, ShieldAlert, CalendarClock, BarChart3, ShieldCheck, Cpu, Lock } from 'lucide-react';
+// Dashboard (post-upload) keeps its lucide set; the landing surface below uses
+// Phosphor Light icons for a finer, more distinct line weight.
+import { LogOut, TrendingUp, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
+import {
+  IconContext,
+  TrendUp,
+  TreeStructure,
+  Fingerprint,
+  ArrowsClockwise,
+  ShieldCheck,
+  Cpu,
+  Lock,
+  TrendDown,
+} from '@phosphor-icons/react';
 import { FileUpload } from '@/components/FileUpload';
 import { SessionTape, shortId } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
@@ -489,7 +502,7 @@ function ConsolePreview() {
             <span className="kpi-label">Monthly spend</span>
             <div className="kpi-value text-[1.4rem]">$4,182</div>
             <div className="mt-1.5 flex items-center gap-1 font-mono text-micro text-brand">
-              <TrendingDown className="h-3 w-3" aria-hidden="true" />
+              <TrendDown className="h-3 w-3" aria-hidden="true" />
               6.2% vs prior
             </div>
           </div>
@@ -586,31 +599,28 @@ function PrivacyTrust() {
       aria-labelledby="privacy-heading"
       className="mt-20 animate-fade-rise border-t border-line pt-12 [animation-delay:240ms] lg:mt-28 lg:pt-16"
     >
-      {/* Open-source credibility — verifiable signals + a link to read the code,
-          not a customer logo wall. Hairline-celled like the session tape. */}
-      <div className="mb-14 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-y-2">
-          {signals.map((s, i) => (
-            <span
-              key={s}
-              className={cn(
-                'px-3.5 font-mono text-micro uppercase tracking-wider text-txt-faint first:pl-0',
-                i > 0 && 'border-l border-line'
-              )}
-            >
-              {s}
-            </span>
+      {/* Open-source credibility — the verifiable signals scroll as one seamless,
+          edge-faded loop (CSS-only, pauses on hover). Decorative repetition, so
+          it's aria-hidden: the same claims are stated for assistive tech in the
+          heading + paragraph just below. */}
+      <div
+        aria-hidden="true"
+        className="marquee relative mb-12 overflow-hidden border-y border-line py-3.5"
+      >
+        <div className="marquee-track flex w-max items-center">
+          {[0, 1].map((copy) => (
+            <div key={copy} className="flex shrink-0 items-center">
+              {[...signals, ...signals, ...signals].map((s, i) => (
+                <span key={`${copy}-${i}`} className="flex items-center">
+                  <span className="px-6 font-mono text-micro uppercase tracking-eyebrow text-txt-faint">
+                    {s}
+                  </span>
+                  <span className="h-1 w-1 rounded-full bg-brand/40" />
+                </span>
+              ))}
+            </div>
           ))}
         </div>
-        <a
-          href={REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 self-start font-mono text-micro uppercase tracking-wider text-txt-muted transition-colors hover:text-brand active:translate-y-px sm:self-auto"
-        >
-          <GithubMark className="h-4 w-4" />
-          Read the source
-        </a>
       </div>
 
       <h2
@@ -623,134 +633,292 @@ function PrivacyTrust() {
         ExpenseEye is open source and self-hostable. No accounts, no third-party processors, and
         nothing kept once your session ends.
       </p>
+      <a
+        href={REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-5 inline-flex items-center gap-2 font-mono text-micro uppercase tracking-wider text-txt-muted transition-colors hover:text-brand active:translate-y-px"
+      >
+        <GithubMark className="h-4 w-4" />
+        Read the source
+      </a>
 
-      {/* Three guarantees — hairline-divided columns, not boxed cards. Stacks with
-          horizontal rules on mobile, vertical rules between columns on sm+. */}
-      <div className="mt-10 grid grid-cols-1 sm:grid-cols-3">
-        {guarantees.map(({ icon: Icon, title, body }, i) => (
-          <div
-            key={title}
-            className={cn(
-              'border-t border-line py-8 first:border-t-0 first:pt-0',
-              'sm:border-l sm:border-t-0 sm:px-7 sm:py-0 sm:first:border-l-0 sm:first:pl-0 sm:last:pr-0',
-              i === 0 && 'sm:border-l-0'
-            )}
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-line bg-tint-1">
-              <Icon className="h-[18px] w-[18px] text-brand" aria-hidden="true" />
-            </div>
-            <h3 className="mt-4 text-base font-semibold text-txt">{title}</h3>
-            <p className="mt-2 max-w-[42ch] text-sm leading-relaxed text-txt-muted text-pretty">{body}</p>
+      {/* Three guarantees, broken out of the symmetric three-column row: the
+          first claim leads at double width over a faint brand wash; the other two
+          stack beside it. On mobile all three fall to a plain icon + h3 + p
+          stack, no backgrounds. */}
+      <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="sm:col-span-2 sm:rounded-xl sm:bg-brand/[0.04] sm:p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1 sm:h-14 sm:w-14">
+            <ShieldCheck className="h-6 w-6 text-brand sm:h-7 sm:w-7" aria-hidden="true" />
           </div>
-        ))}
+          <h3 className="mt-5 text-lg font-semibold text-txt text-balance sm:text-xl">
+            {guarantees[0].title}
+          </h3>
+          <p className="mt-2.5 max-w-[55ch] text-sm leading-relaxed text-txt-muted text-pretty sm:text-base">
+            {guarantees[0].body}
+          </p>
+        </div>
+
+        <div className="grid gap-6 sm:col-span-1 sm:grid-rows-2">
+          {guarantees.slice(1).map(({ icon: Icon, title, body }) => (
+            <div key={title}>
+              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-line bg-tint-1">
+                <Icon className="h-[18px] w-[18px] text-brand" aria-hidden="true" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-txt">{title}</h3>
+              <p className="mt-2 max-w-[42ch] text-sm leading-relaxed text-txt-muted text-pretty">
+                {body}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Tracks whether the page has scrolled past `offset` pixels — used to give the
+ * floating nav pill a ring + shadow once it detaches from the top. Implemented
+ * with an IntersectionObserver on a top sentinel (no scroll listener, so no
+ * per-frame reflow): when the `offset`-tall marker leaves the viewport, we're
+ * past it. Returns a ref to attach to the sentinel.
+ */
+function useScrolled() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting), {
+      threshold: 0,
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return { ref, scrolled };
+}
+
+/**
+ * One capability in the hero's 2×2 grid. Each lifts into view on first scroll-in
+ * (IntersectionObserver via useInView), staggered 100ms by row index through the
+ * shared `[data-reveal]` transition. The reveal transform lives on the <li>; the
+ * hover nudge lives on an inner wrapper so the two never fight over `transform`.
+ * Neutralized under the global reduced-motion block.
+ */
+function CapabilityItem({
+  icon: Icon,
+  label,
+  note,
+  index,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  note: string;
+  index: number;
+}) {
+  const { ref, inView } = useInView<HTMLLIElement>();
+  return (
+    <li
+      ref={ref}
+      data-reveal={inView ? 'in' : 'out'}
+      style={{ transitionDelay: `${index * 100}ms` }}
+      className="group cursor-default"
+    >
+      <div className="flex items-center gap-3 transition-transform duration-200 ease-out group-hover:translate-x-1">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-tint-1 transition-colors duration-200 group-hover:border-line-strong">
+          <Icon
+            className="h-[18px] w-[18px] text-brand transition-[filter] duration-200 group-hover:drop-shadow-[0_0_5px_rgb(var(--brand-rgb)_/_0.5)]"
+            aria-hidden="true"
+          />
+        </span>
+        <div className="leading-tight">
+          <span className="block text-sm font-medium text-txt">{label}</span>
+          <span className="block font-mono text-micro text-txt-faint transition-colors duration-200 group-hover:text-txt-muted">
+            {note}
+          </span>
+        </div>
+      </div>
+    </li>
   );
 }
 
 // ------------------------------------------------------------------ Landing //
 function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void }) {
   const capabilities = [
-    { icon: TrendingUp, label: 'Cash-flow forecast', note: 'next-month projection' },
-    { icon: Tags, label: 'Smart categorization', note: 'trained classifier' },
-    { icon: ShieldAlert, label: 'Anomaly detection', note: 'outlier charges' },
-    { icon: CalendarClock, label: 'Subscription radar', note: 'recurring payments' },
+    { icon: TrendUp, label: 'Cash-flow forecast', note: 'next-month projection' },
+    { icon: TreeStructure, label: 'Smart categorization', note: 'trained classifier' },
+    { icon: Fingerprint, label: 'Anomaly detection', note: 'outlier charges' },
+    { icon: ArrowsClockwise, label: 'Subscription radar', note: 'recurring payments' },
   ];
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { ref: sentinelRef, scrolled } = useScrolled();
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-line">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
-          <div className="flex items-center gap-2.5">
-            <EyeMark className="h-8 w-8 text-txt" />
-            <div className="leading-none">
-              <span className="font-display text-lg font-bold tracking-tight text-txt">
+    // Phosphor Light weight for every icon on the landing surface (the dashboard
+    // keeps its own lucide set). One context beats threading `weight` per icon.
+    <IconContext.Provider value={{ weight: 'light' }}>
+      <div className="relative flex min-h-dvh flex-col">
+        {/* Scroll sentinel: an 80px marker at the very top. When it leaves the
+            viewport the nav pill earns its ring + shadow. */}
+        <div ref={sentinelRef} aria-hidden="true" className="absolute left-0 top-0 h-20 w-px" />
+
+        {/* Floating glass-pill nav — detached from the top, the one place glass is
+            allowed. Sticks with a 20px gap held by the wrapper's padding (not a
+            margin, which would collapse on stick). */}
+        <header className="sticky top-0 z-30 px-4 pt-5">
+          <div
+            className={cn(
+              'mx-auto flex w-full max-w-2xl items-center justify-between gap-6 rounded-full border border-line bg-header px-5 py-2.5 backdrop-blur-xl transition-shadow duration-300 sm:w-max sm:gap-12 sm:px-6 sm:py-3',
+              scrolled && 'shadow-panel ring-1 ring-line-strong'
+            )}
+          >
+            <div className="flex items-center gap-2.5">
+              <EyeMark className="h-7 w-7 text-txt" />
+              <span className="font-display text-base font-bold tracking-tight text-txt">
                 Expense<span className="text-brand">Eye</span>
               </span>
-              <p className="mt-1 font-mono text-micro uppercase tracking-eyebrow text-txt-faint">
-                Analytics Console
-              </p>
             </div>
+
+            {/* Desktop actions */}
+            <div className="hidden items-center gap-0.5 sm:flex">
+              <ThemeToggle />
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-txt-faint transition-colors hover:text-txt active:translate-y-px"
+                aria-label="GitHub repository"
+              >
+                <GithubMark className="h-5 w-5" />
+              </a>
+            </div>
+
+            {/* Mobile hamburger → X (transform-only morph) */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-controls="landing-menu"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              className="relative h-9 w-9 shrink-0 rounded-full text-txt transition-colors hover:bg-tint-2 active:translate-y-px sm:hidden"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'absolute left-2.5 right-2.5 top-1/2 h-[1.5px] rounded-full bg-current transition-transform duration-300 ease-out',
+                  menuOpen ? 'rotate-45' : '-translate-y-[4px]'
+                )}
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'absolute left-2.5 right-2.5 top-1/2 h-[1.5px] rounded-full bg-current transition-transform duration-300 ease-out',
+                  menuOpen ? '-rotate-45' : 'translate-y-[4px]'
+                )}
+              />
+            </button>
           </div>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
+
+          {/* Mobile menu — absolute, so opening it never shifts layout; fades and
+              slides on transform + opacity only. */}
+          <div
+            id="landing-menu"
+            className={cn(
+              'absolute inset-x-4 top-full origin-top rounded-2xl border border-line bg-header p-2 shadow-panel backdrop-blur-xl transition-all duration-300 ease-out sm:hidden',
+              menuOpen ? 'translate-y-2 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0'
+            )}
+          >
+            <ThemeToggle withLabel />
             <a
               href={REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-11 w-11 items-center justify-center text-txt-faint transition-colors hover:text-txt active:translate-y-px"
-              aria-label="GitHub repository"
+              className="flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-tint-2 hover:text-txt active:translate-y-px"
             >
-              <GithubMark className="h-5 w-5" />
+              <GithubMark className="h-4 w-4" />
+              <span>Read the source</span>
             </a>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 sm:px-8 lg:py-16">
-        {/* Two-up on desktop: positioning + intake on the left, a preview of the
-            console on the right so the empty half carries the product's promise.
-            Collapses to a single stacked column below lg. */}
-        <div className="grid grid-cols-1 items-center gap-x-16 gap-y-14 lg:grid-cols-2">
-          {/* Left — positioning + the intake instrument */}
-          <div>
-            <div className="animate-fade-rise">
-              <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-txt sm:text-5xl lg:text-6xl">
-                Drop. Parse.
-                <br />
-                <span className="text-brand">Know.</span>
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
-                Drop in a bank statement and ExpenseEye reads it the way an analyst would:
-                forecasting next month, flagging the charges that don't fit, and surfacing the
-                subscriptions you forgot about.
-              </p>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 sm:px-8 lg:py-20">
+          {/* Two-up on desktop: positioning + intake on the left, a preview of the
+              console on the right so the empty half carries the product's promise.
+              Collapses to a single stacked column below lg. */}
+          <div className="grid grid-cols-1 items-center gap-x-16 gap-y-14 lg:grid-cols-2">
+            {/* Left — positioning + the intake instrument */}
+            <div className="min-w-0">
+              <div className="animate-fade-rise">
+                <h1 className="max-w-4xl font-display text-[2.75rem] font-bold leading-[1.03] tracking-[-0.03em] text-txt text-balance sm:text-6xl">
+                  Drop. Parse.
+                  <br />
+                  <span className="text-brand">Know.</span>
+                </h1>
+                <p className="mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
+                  Drop in a bank statement and ExpenseEye reads it the way an analyst would:
+                  forecasting next month, flagging the charges that don't fit, and surfacing the
+                  subscriptions you forgot about.
+                </p>
 
-              {/* Capability strip — inline legend, not a boxed grid */}
-              <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
-                {capabilities.map(({ icon: Icon, label, note }) => (
-                  <li
-                    key={label}
-                    className="group flex cursor-default items-center gap-2.5 transition-transform duration-200 ease-out hover:translate-x-1"
-                  >
-                    <Icon
-                      className="h-4 w-4 shrink-0 text-brand transition-[filter] duration-200 group-hover:drop-shadow-[0_0_5px_rgb(var(--brand-rgb)_/_0.5)]"
-                      aria-hidden="true"
-                    />
-                    <div className="leading-tight">
-                      <span className="block text-sm font-medium text-txt">{label}</span>
-                      <span className="block font-mono text-micro text-txt-faint transition-colors duration-200 group-hover:text-txt-muted">
-                        {note}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                {/* Capability grid — a true 2×2 on sm+, each row revealing on a
+                    100ms stagger. Stacks to one column on mobile. */}
+                <ul className="mt-9 grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                  {capabilities.map(({ icon, label, note }, i) => (
+                    <CapabilityItem key={label} icon={icon} label={label} note={note} index={i} />
+                  ))}
+                </ul>
+              </div>
+
+              {/* The instrument */}
+              <div className="mt-10 max-w-xl animate-fade-rise [animation-delay:80ms]">
+                <FileUpload onUploadSuccess={onUploadSuccess} />
+              </div>
             </div>
 
-            {/* The instrument */}
-            <div className="mt-10 max-w-xl animate-fade-rise [animation-delay:80ms]">
-              <FileUpload onUploadSuccess={onUploadSuccess} />
+            {/* Right — a stylized peek at the board the upload unlocks, set in a
+                double-bezel shell (aluminium tray + glass plate) over a soft
+                phosphor glow so it reads as physical hardware, not a flat mock. */}
+            <div className="animate-fade-rise relative mx-auto w-full min-w-0 max-w-md [animation-delay:160ms] lg:max-w-none">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -inset-4 rounded-[3rem] bg-brand/[0.08] blur-3xl"
+              />
+              <div className="relative rounded-[2rem] border border-line bg-tint-1 p-2">
+                <div className="overflow-hidden rounded-[1.5rem]">
+                  <ConsolePreview />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right — a stylized peek at the board the upload unlocks */}
-          <div className="animate-fade-rise mx-auto w-full max-w-md [animation-delay:160ms] lg:max-w-none">
-            <ConsolePreview />
+          {/* Earn the right to ask for a bank statement */}
+          <PrivacyTrust />
+        </main>
+
+        <footer className="mt-8 border-t border-line">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <p className="font-mono text-xs uppercase tracking-wider text-txt-muted">
+              ExpenseEye · {new Date().getFullYear()}
+            </p>
+            <div className="flex flex-col gap-2 text-xs text-txt-faint sm:flex-row sm:items-center sm:gap-5">
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-txt-muted transition-colors hover:text-brand active:translate-y-px"
+              >
+                <GithubMark className="h-4 w-4" />
+                <span>GitHub</span>
+              </a>
+              <span className="text-txt-faint">Open source. Private by design.</span>
+            </div>
           </div>
-        </div>
-
-        {/* Earn the right to ask for a bank statement */}
-        <PrivacyTrust />
-      </main>
-
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-5 py-5 text-xs text-txt-faint sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p>Processed locally · deleted after the session · nothing stored or shared.</p>
-          <p className="font-mono">ExpenseEye · {new Date().getFullYear()}</p>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </IconContext.Provider>
   );
 }
 

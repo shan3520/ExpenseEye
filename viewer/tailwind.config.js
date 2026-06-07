@@ -50,10 +50,10 @@ export default {
         warning: "rgb(var(--warning-rgb) / <alpha-value>)",
         info: "rgb(var(--info-rgb) / <alpha-value>)",
       },
-      // Two families only: Manrope (display + UI) and IBM Plex Mono (figures).
+      // Two families only: Geist (display + UI) and IBM Plex Mono (figures).
       fontFamily: {
-        display: ["Manrope", "system-ui", "sans-serif"],
-        sans: ["Manrope", "system-ui", "Avenir", "Helvetica", "Arial", "sans-serif"],
+        display: ["Geist", "system-ui", "sans-serif"],
+        sans: ["Geist", "system-ui", "Avenir", "Helvetica", "Arial", "sans-serif"],
         mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       // Committed rem type scale (product UI, ~1.2 ratio). Semantic small tiers

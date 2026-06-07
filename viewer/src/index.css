@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -113,6 +113,23 @@ html {
     outline-offset: 2px;
   }
 
+  /* Ambient signal mesh — two soft, fixed glow orbs (phosphor-green top-right,
+     cyan bottom-left) bled into the canvas so the hero reads with depth instead
+     of a flat OLED field. Fixed + pointer-events-none + radial falloff to
+     transparent, so it never scrolls, never intercepts input, and never costs a
+     repaint. Tuned low (≤10%) to stay signal-not-decoration and to survive the
+     light theme without washing the paper out. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1; /* above canvas + grid, behind the scanline veil and content */
+    pointer-events: none;
+    background-image:
+      radial-gradient(42rem 42rem at 100% -4%, rgb(var(--brand-rgb) / 0.10), transparent 62%),
+      radial-gradient(38rem 38rem at -6% 104%, rgb(var(--accent-rgb) / 0.06), transparent 62%);
+  }
+
   /* CRT scanline veil — fixed, non-interactive, sits above the canvas but below
      content. Static (no animation) so it never costs a repaint or fights
      reduced-motion; just lends the console a faint hardware texture. */
@@ -135,7 +152,7 @@ html {
 body {
   background-color: var(--canvas);
   color: var(--txt);
-  font-family: Manrope, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Geist, system-ui, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   /* faint ledger grid — graph-paper texture, not a SaaS glow */
@@ -148,7 +165,7 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: Manrope, system-ui, sans-serif;
+  font-family: Geist, system-ui, sans-serif;
 }
 
 /* Tabular figures so currency columns align */
@@ -170,6 +187,23 @@ h1, h2, h3, h4 {
   0%   { box-shadow: 0 0 0 0 rgb(var(--brand-rgb) / 0.5); }
   70%  { box-shadow: 0 0 0 6px rgb(var(--brand-rgb) / 0); }
   100% { box-shadow: 0 0 0 0 rgb(var(--brand-rgb) / 0); }
+}
+
+/* Trust-strip marquee — the verifiable signals scroll as one seamless loop. The
+   track holds two identical copies of the list; translating exactly -50% lands
+   copy B precisely where copy A began, so the seam is invisible. GPU-only
+   (transform), and the global reduced-motion block freezes it to a static row. */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Upload-icon pulse — a phosphor ring breathing behind the drop-zone glyph,
+   inviting a drop. Pure transform + opacity; paused while a file is dragged over
+   (the affordance is already engaged) via the .is-dragging parent flag. */
+@keyframes upload-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.45; }
+  50%      { transform: scale(1.15); opacity: 0; }
 }
 
 /* Bento reveal — each tile lifts from 12px below and settles with a spring.
@@ -311,5 +345,36 @@ h1, h2, h3, h4 {
   /* Empty / error state shell */
   .state-block {
     @apply rounded-md border border-line bg-tint-1 px-6 py-10 text-center;
+  }
+
+  /* ---- Trust marquee --------------------------------------------------- */
+
+  /* Viewport: clips the over-wide track and fades both edges so signals drift in
+     and out of a soft horizon rather than snapping at a hard border. */
+  .marquee {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  }
+  /* Track: two duplicated runs sitting side by side; w-max keeps it on one line
+     so the -50% translate maps copy B onto copy A for a seamless loop. */
+  .marquee-track {
+    animation: marquee-scroll 32s linear infinite;
+    will-change: transform;
+  }
+  /* Pause on hover so a reader can actually parse the claims. */
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+
+  /* ---- Upload drop-zone pulse ----------------------------------------- */
+
+  /* A soft phosphor ring sat behind the upload glyph; the keyframe does the
+     breathing. Held still while a file is over the zone. */
+  .upload-pulse {
+    animation: upload-pulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+  .is-dragging .upload-pulse {
+    animation-play-state: paused;
+    opacity: 0;
   }
 }

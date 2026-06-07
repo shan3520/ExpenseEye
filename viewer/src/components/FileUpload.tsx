@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, X, CheckCircle2 } from 'lucide-react';
+// Phosphor Light to match the landing surface; weight is inherited from the
+// IconContext provider in App's <Landing>, which wraps this component.
+import { UploadSimple, FileText, X, CheckCircle } from '@phosphor-icons/react';
 import axios from 'axios';
 import api from '@/lib/api';
 import type { UploadResponse } from '@/types';
@@ -77,10 +79,12 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
 
         <div
           className={cn(
-            'rounded-md border-2 border-dashed p-6 transition-[border-color,background-color,box-shadow] duration-200 ease-out',
+            // border-style flips dashed → solid on hover/drag; border-color
+            // animates over 0.3s for the soft solidify the brief calls for.
+            'rounded-md border-2 p-6 transition-[border-color,background-color,box-shadow] duration-300 ease-out',
             isDragging
-              ? 'border-brand bg-brand/[0.06] ring-2 ring-brand/40'
-              : 'border-brand/30 bg-brand/[0.03] hover:border-brand/50'
+              ? 'is-dragging border-solid border-brand bg-brand/[0.06] ring-2 ring-brand/40'
+              : 'border-dashed border-brand/30 bg-brand/[0.03] hover:border-solid hover:border-brand'
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -89,14 +93,26 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
           {!file ? (
             <div className="flex flex-col items-start gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1">
-                <Upload className="h-5 w-5 text-txt-muted" aria-hidden="true" />
+              {/* Upload glyph over a breathing phosphor ring — an invitation to
+                  drop. The ring stills while a file is dragged over (.is-dragging
+                  on the parent zone) and under reduced motion. */}
+              <div className="relative">
+                <span
+                  aria-hidden="true"
+                  className="upload-pulse absolute inset-0 rounded-md bg-brand/15"
+                />
+                <div className="relative flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1">
+                  <UploadSimple className="h-5 w-5 text-brand" aria-hidden="true" />
+                </div>
               </div>
               <div>
                 <p className="text-base font-medium text-txt">Drop your bank statement</p>
                 <p className="mt-1 text-sm text-txt-muted">or browse for a .csv export</p>
               </div>
-              <button onClick={() => fileInputRef.current?.click()} className="btn-ghost">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-line-strong bg-tint-2 px-5 py-2.5 text-sm font-medium text-txt-muted transition-colors duration-200 hover:border-brand hover:bg-brand hover:text-[color:var(--on-brand)] active:translate-y-px cursor-pointer"
+              >
                 Select file
               </button>
             </div>
@@ -114,7 +130,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                   disabled={isUploading}
                   aria-label="Remove file"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
               <button onClick={handleUpload} disabled={isUploading} className="btn-primary w-full sm:w-auto">
@@ -156,7 +172,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
       {mappingInfo && (
         <div className="rounded-md border border-success/25 bg-success/[0.06] p-4 text-sm">
           <div className="mb-3 flex items-center gap-2 font-medium text-success">
-            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+            <CheckCircle className="h-4 w-4" aria-hidden="true" />
             <p>Columns mapped</p>
           </div>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
