@@ -35,7 +35,7 @@ export function AnomalyDetection({ sessionId }: Props) {
 
   if (data.anomaly_count === 0) return (
     <div className="state-block border-success/25 bg-success/[0.06]">
-      <CheckCircle className="mx-auto mb-3 h-8 w-8 text-success" />
+      <CheckCircle className="mx-auto mb-3 h-8 w-8 text-success" aria-hidden="true" />
       <p className="text-base font-medium text-txt">Nothing unusual</p>
       <p className="mx-auto mt-1.5 max-w-md text-sm text-txt-muted">
         Scanned {data.total_transactions} transactions with {data.method}.

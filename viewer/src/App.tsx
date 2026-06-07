@@ -113,7 +113,7 @@ function ModuleHeader({ mod }: { mod: ModuleDef }) {
     <header className="mb-5">
       <div className="flex items-center gap-2.5">
         <span className="module-rail" aria-hidden="true" />
-        <Icon className="h-[18px] w-[18px] text-txt-muted" />
+        <Icon className="h-[18px] w-[18px] text-txt-muted" aria-hidden="true" />
         <h2 className="font-display text-subhead font-semibold tracking-tight text-txt">
           {mod.title}
         </h2>
@@ -216,6 +216,7 @@ function App() {
                 )}
               >
                 <Icon
+                  aria-hidden="true"
                   className={cn(
                     'h-[18px] w-[18px] shrink-0',
                     active
@@ -249,7 +250,7 @@ function App() {
             onClick={handleLogout}
             className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4" aria-hidden="true" />
             <span>End session</span>
           </button>
         </div>
@@ -270,7 +271,7 @@ function App() {
               onClick={handleLogout}
               className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-txt-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
               End
             </button>
           </div>

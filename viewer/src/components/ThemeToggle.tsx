@@ -46,7 +46,7 @@ export function ThemeToggle({ withLabel = false, className }: { withLabel?: bool
           className
         )}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-4 w-4" aria-hidden="true" />
         <span>{theme === 'light' ? 'Dark mode' : 'Light mode'}</span>
       </button>
     );
@@ -63,7 +63,7 @@ export function ThemeToggle({ withLabel = false, className }: { withLabel?: bool
         className
       )}
     >
-      <Icon className="h-[18px] w-[18px]" />
+      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
     </button>
   );
 }

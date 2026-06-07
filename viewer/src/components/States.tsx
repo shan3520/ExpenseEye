@@ -6,7 +6,7 @@ import { AlertCircle } from 'lucide-react';
 export function Loading({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center gap-3 py-12 text-sm text-txt-faint" role="status" aria-live="polite">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-line-strong border-t-brand" aria-hidden="true" />
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-line-strong border-t-brand motion-reduce:animate-none motion-reduce:border-brand" aria-hidden="true" />
       <span>{label}</span>
     </div>
   );

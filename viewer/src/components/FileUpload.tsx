@@ -91,7 +91,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           {!file ? (
             <div className="flex flex-col items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-tint-1">
-                <Upload className="h-5 w-5 text-txt-muted" />
+                <Upload className="h-5 w-5 text-txt-muted" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-base font-medium text-txt">Drop your bank statement</p>
@@ -104,7 +104,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           ) : (
             <div className="flex flex-col items-start gap-5">
               <div className="flex w-full items-center gap-3 rounded-md border border-line bg-tint-2 p-3 text-left">
-                <FileText className="h-5 w-5 flex-shrink-0 text-brand" />
+                <FileText className="h-5 w-5 flex-shrink-0 text-brand" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-txt">{file.name}</p>
                   <p className="font-mono text-micro text-txt-faint">{(file.size / 1024).toFixed(1)} KB</p>
@@ -146,7 +146,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
       {mappingInfo && (
         <div className="rounded-md border border-success/25 bg-success/[0.06] p-4 text-sm">
           <div className="mb-3 flex items-center gap-2 font-medium text-success">
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             <p>Columns mapped</p>
           </div>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">

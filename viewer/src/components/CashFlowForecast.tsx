@@ -62,15 +62,15 @@ export function CashFlowForecast({ sessionId }: Props) {
       {/* headline numbers — KPI strip with hairline dividers, not boxes */}
       <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="p-4">
-          <div className="kpi-label"><Calendar className="h-3.5 w-3.5" /><span>Next 30 days</span></div>
+          <div className="kpi-label"><Calendar className="h-3.5 w-3.5" aria-hidden="true" /><span>Next 30 days</span></div>
           <div className="kpi-value"><Counter value={data.next_30_day_total} format={fmt} /></div>
         </div>
         <div className="p-4">
-          <div className="kpi-label text-accent-light"><Target className="h-3.5 w-3.5" /><span>Next month</span></div>
+          <div className="kpi-label text-accent-light"><Target className="h-3.5 w-3.5" aria-hidden="true" /><span>Next month</span></div>
           <div className="kpi-value text-accent-light"><Counter value={data.next_month_total} format={fmt} /></div>
         </div>
         <div className="p-4">
-          <div className="kpi-label"><Activity className="h-3.5 w-3.5" /><span>History</span></div>
+          <div className="kpi-label"><Activity className="h-3.5 w-3.5" aria-hidden="true" /><span>History</span></div>
           <div className="kpi-value">{data.history_months}<span className="ml-1 text-base text-txt-faint">mo</span></div>
           <p className="mt-1 font-mono text-micro text-txt-faint">{data.history_days} days of data</p>
         </div>

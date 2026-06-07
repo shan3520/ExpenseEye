@@ -49,17 +49,17 @@ export function TransactionCategories({ sessionId }: Props) {
       {/* coverage summary */}
       <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="p-4">
-          <div className="kpi-label"><Cpu className="h-3.5 w-3.5" /><span>Model coverage</span></div>
+          <div className="kpi-label"><Cpu className="h-3.5 w-3.5" aria-hidden="true" /><span>Model coverage</span></div>
           <div className="kpi-value text-brand"><Counter value={modelPct} format={(n) => `${Math.round(n)}%`} /></div>
           <p className="mt-1 font-mono text-micro text-txt-faint">{data.counts.model}/{data.counts.total} classified</p>
         </div>
         <div className="p-4">
-          <div className="kpi-label"><BookOpen className="h-3.5 w-3.5" /><span>Rule fallback</span></div>
+          <div className="kpi-label"><BookOpen className="h-3.5 w-3.5" aria-hidden="true" /><span>Rule fallback</span></div>
           <div className="kpi-value">{data.counts.rule_fallback}</div>
           <p className="mt-1 font-mono text-micro text-txt-faint">low-confidence rows</p>
         </div>
         <div className="p-4">
-          <div className="kpi-label"><Tags className="h-3.5 w-3.5" /><span>Categories</span></div>
+          <div className="kpi-label"><Tags className="h-3.5 w-3.5" aria-hidden="true" /><span>Categories</span></div>
           <div className="kpi-value">{data.breakdown.length}</div>
           <p className="mt-1 font-mono text-micro text-txt-faint">detected</p>
         </div>
