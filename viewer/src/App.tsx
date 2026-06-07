@@ -10,6 +10,7 @@ import { TransactionCategories } from '@/components/TransactionCategories';
 import { AnomalyDetection } from '@/components/AnomalyDetection';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useInView } from '@/lib/useInView';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 import { cn } from '@/lib/utils';
 
 /** GitHub mark (not in this lucide-react build, so inlined). */
@@ -144,17 +145,27 @@ function ModuleCard({ mod, sessionId, index }: { mod: ModuleDef; sessionId: stri
 
 function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // `booting` gates the upload→dashboard bridge: once an upload succeeds we hold
+  // on the ProcessingTerminal until its sequence finishes, then reveal the board.
+  const [booting, setBooting] = useState(false);
   const [activeId, setActiveId] = useState<string>(MODULES[0].id);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  const handleUploadSuccess = (id: string) => {
+    setSessionId(id);
+    setBooting(true);
+  };
+
   const handleLogout = () => {
     setSessionId(null);
+    setBooting(false);
     setActiveId(MODULES[0].id);
   };
 
-  // Scroll-spy: highlight the module currently in view.
+  // Scroll-spy: highlight the module currently in view. Re-runs once booting
+  // clears so it observes the modules that mount with the dashboard.
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || booting) return;
     const obs = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -170,11 +181,16 @@ function App() {
     });
     observerRef.current = obs;
     return () => obs.disconnect();
-  }, [sessionId]);
+  }, [sessionId, booting]);
 
   // ---------------------------------------------------------------- landing //
   if (!sessionId) {
-    return <Landing onUploadSuccess={setSessionId} />;
+    return <Landing onUploadSuccess={handleUploadSuccess} />;
+  }
+
+  // ------------------------------------------------------------ boot bridge //
+  if (booting) {
+    return <ProcessingTerminal onComplete={() => setBooting(false)} />;
   }
 
   // -------------------------------------------------------------- dashboard //
@@ -332,6 +348,97 @@ function App() {
             </div>
           </footer>
         </main>
+      </div>
+    </div>
+  );
+}
+
+/** Boot log lines. The tag carries the signal color (cyan for the ML steps,
+    phosphor green for the final READY), matching the console's "color is signal"
+    rule. */
+const BOOT_LOGS: { tag: string; text: string; tone: 'muted' | 'accent' | 'brand' }[] = [
+  { tag: 'SYSTEM', text: 'Allocating local memory…', tone: 'muted' },
+  { tag: 'PARSER', text: 'Reading statement rows…', tone: 'muted' },
+  { tag: 'PARSER', text: 'Mapping columns: date, amount, payee…', tone: 'muted' },
+  { tag: 'ML', text: 'Classifying transactions…', tone: 'accent' },
+  { tag: 'ML', text: 'Forecasting next-month cash flow…', tone: 'accent' },
+  { tag: 'READY', text: 'Board ready.', tone: 'brand' },
+];
+
+const TONE_CLASS = { muted: 'text-txt-faint', accent: 'text-accent', brand: 'text-brand' } as const;
+
+/**
+ * Boot bridge shown between a successful upload and the dashboard. By the time
+ * this mounts the backend has already parsed and classified the statement, so
+ * this isn't a fake delay padding empty time. It replays that finished work as a
+ * short terminal sequence (~2.5s) so the jump to the board reads as a deliberate
+ * hand-off instead of a hard snap. Under reduced motion the full log renders at
+ * once and it hands off quickly. All token-styled, so it tracks both themes.
+ */
+function ProcessingTerminal({ onComplete }: { onComplete: () => void }) {
+  const reduce = useReducedMotion();
+  const [shown, setShown] = useState(reduce ? BOOT_LOGS.length : 0);
+  // Hold the latest callback in a ref so the timer effect runs once on mount and
+  // never restarts the sequence if the parent re-renders.
+  const done = useRef(onComplete);
+  done.current = onComplete;
+
+  useEffect(() => {
+    if (reduce) {
+      const t = window.setTimeout(() => done.current(), 500);
+      return () => window.clearTimeout(t);
+    }
+    const STEP = 360; // ms between lines; six lines + a tail beat ≈ 2.5s
+    const timers = BOOT_LOGS.map((_, i) =>
+      window.setTimeout(() => setShown(i + 1), i * STEP)
+    );
+    timers.push(window.setTimeout(() => done.current(), BOOT_LOGS.length * STEP + 340));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [reduce]);
+
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center px-5">
+      <div className="w-full max-w-lg">
+        {/* tape-style header, mirroring the dashboard's session tape */}
+        <div className="flex h-9 items-center gap-2.5 rounded-t-lg border border-line bg-header px-4">
+          <span className="live-dot" aria-hidden="true" />
+          <span className="font-mono text-micro font-semibold uppercase tracking-wider text-brand">
+            Initializing
+          </span>
+          <span className="ml-auto font-mono text-micro uppercase tracking-wider text-txt-faint">
+            Local session
+          </span>
+        </div>
+
+        <div
+          className="rounded-b-lg border border-t-0 border-line bg-panel p-5 shadow-panel"
+          role="status"
+          aria-live="polite"
+        >
+          <ul className="space-y-2.5 font-mono text-data">
+            {BOOT_LOGS.slice(0, shown).map((l, i) => {
+              const isLast = i === shown - 1;
+              return (
+                <li key={i} className="flex animate-fade-rise items-start gap-2.5">
+                  <span
+                    className={cn('shrink-0 font-semibold uppercase tracking-wider', TONE_CLASS[l.tone])}
+                  >
+                    [{l.tag}]
+                  </span>
+                  <span className="text-txt-muted">
+                    {l.text}
+                    {isLast && shown < BOOT_LOGS.length && (
+                      <span
+                        aria-hidden="true"
+                        className="ml-1 inline-block h-3.5 w-[7px] translate-y-[2px] animate-pulse bg-brand align-baseline"
+                      />
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
     </div>
   );
@@ -602,11 +709,19 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
               {/* Capability strip — inline legend, not a boxed grid */}
               <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
                 {capabilities.map(({ icon: Icon, label, note }) => (
-                  <li key={label} className="flex items-center gap-2.5">
-                    <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                  <li
+                    key={label}
+                    className="group flex cursor-default items-center gap-2.5 transition-transform duration-200 ease-out hover:translate-x-1"
+                  >
+                    <Icon
+                      className="h-4 w-4 shrink-0 text-brand transition-[filter] duration-200 group-hover:drop-shadow-[0_0_5px_rgb(var(--brand-rgb)_/_0.5)]"
+                      aria-hidden="true"
+                    />
                     <div className="leading-tight">
                       <span className="block text-sm font-medium text-txt">{label}</span>
-                      <span className="block font-mono text-micro text-txt-faint">{note}</span>
+                      <span className="block font-mono text-micro text-txt-faint transition-colors duration-200 group-hover:text-txt-muted">
+                        {note}
+                      </span>
                     </div>
                   </li>
                 ))}

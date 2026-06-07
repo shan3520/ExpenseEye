@@ -4,7 +4,6 @@ import axios from 'axios';
 import api from '@/lib/api';
 import type { UploadResponse } from '@/types';
 import { cn } from '@/lib/utils';
-import { ErrorState } from '@/components/States';
 
 interface FileUploadProps {
   onUploadSuccess: (sessionId: string) => void;
@@ -55,7 +54,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
     } catch (err: unknown) {
       if (axios.isCancel(err)) return;
       const apiError = axios.isAxiosError(err) ? err.response?.data?.error : undefined;
-      setError(apiError || "Failed to upload file. Please make sure the backend API is running.");
+      setError(apiError || "Could not reach the parser. Make sure the backend is running.");
     } finally { setIsUploading(false); }
   };
 
@@ -141,7 +140,18 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
         </p>
       </div>
 
-      {error && <ErrorState message={error} />}
+      {/* Terminal-style alert: a [SYS_ERR] readout in the danger signal, not a
+          generic red box. Tag carries the color; the message stays high-contrast
+          text-txt so it reads cleanly in both themes. */}
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-md border border-danger/30 bg-danger/[0.07] px-4 py-3 font-mono text-data"
+        >
+          <span className="shrink-0 font-semibold uppercase tracking-wider text-danger">[SYS_ERR]</span>
+          <p className="text-txt">{error}</p>
+        </div>
+      )}
 
       {mappingInfo && (
         <div className="rounded-md border border-success/25 bg-success/[0.06] p-4 text-sm">
