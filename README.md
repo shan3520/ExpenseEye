@@ -31,6 +31,7 @@ ExpenseEye is a privacy-first financial analytics platform that helps you unders
 - 🚨 **Anomaly Detection (ML)**: Robust per-category z-scores flag unusual transactions with plain-English explanations
 - 🌍 **Global Support**: Auto-detects DD/MM/YYYY and MM/DD/YYYY date formats
 - ⚡ **Session-Based**: Ephemeral SQLite databases - data deleted after session
+- 🖥️ **"Vault Terminal" UI**: themeable dark/light instrument console - a 2-column landing with a live board preview, a parse/classify boot sequence on upload, and terminal-style readouts and error alerts throughout (WCAG 2.1 AA, reduced-motion aware)
 
 ## Architecture
 

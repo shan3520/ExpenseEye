@@ -138,6 +138,31 @@ session tape, table headers).
 ### State block
 - Base: `rounded-md border border-line bg-tint-1 px-6 py-10 text-center`
 
+### Console preview (landing)
+- A non-interactive, decorative mini-instrument in the landing hero's right column
+  (`aria-hidden`, `pointer-events-none`, `select-none`). Composed from the real
+  primitives (session-tape header, `.kpi-label`/`.kpi-value` legends, the cyan ML
+  tag, a phosphor/cyan cash-flow bar strip, a recurring-subscriptions slice) so it
+  reads as a faithful preview of the board, not a div-based fake screenshot. All
+  figures are illustrative mocks. Pure tokens, so it tracks both themes; stacks
+  below the hero copy below `lg`.
+
+### Processing terminal (boot bridge)
+- The full-viewport hand-off between a successful upload and the dashboard
+  (`ProcessingTerminal` in `App.tsx`). A tape-style header (`Initializing` /
+  `Local session`) over a `.panel` that reveals mono boot logs sequentially
+  (`[SYSTEM]` / `[PARSER]` / `[ML]` / `[READY]`) across ~2.5s, then reveals the
+  board. Tags carry the signal color (cyan for the ML steps, phosphor green for
+  `[READY]`). The backend has already parsed and classified by the time it mounts,
+  so it replays finished work rather than padding a fake delay (see Motion).
+
+### Terminal alert (upload error)
+- The upload failure state is a terminal readout, not a generic red box: a
+  `[SYS_ERR]` tag in the danger signal followed by the message in high-contrast
+  `text-txt`, mono, `rounded-md border border-danger/30 bg-danger/[0.07]`. The
+  shared `ErrorState` (dashboard module fetch errors) keeps its icon + message
+  form; this terminal variant is specific to the intake panel.
+
 ### Radius ladder
 - sm 6px (tags) · md/DEFAULT 8px (buttons, inputs, insets) · lg 12px (panels) · xl 16px (large containers)
 
@@ -156,6 +181,21 @@ state change), never decorative.
 
 ### Fade rise
 - `fade-rise`: opacity 0 → 1, translateY(8px) → 0, `0.5s cubic-bezier(0.16, 1, 0.3, 1)`.
+  Also used to stagger the landing hero blocks and the trust section in on load.
+
+### Boot sequence
+- The Processing terminal reveals one log line at a time (~360ms apart, ~2.5s
+  total) via `fade-rise`, with a blinking caret on the active line. This is a
+  reveal that narrates a real state transition (upload → parsed board), not
+  decoration. It is the one place motion intentionally paces the user.
+
+### Hover micro-interactions
+- Landing capability items: on hover, a subtle `translate-x` shift, a phosphor
+  `drop-shadow` glow on the icon (the same treatment as the active sidebar nav),
+  and the mono note brightening faint → muted. `cursor-default` (they are legends,
+  not links).
+- Panels lift 2px with a deeper well on hover; primary/ghost buttons press 1px on
+  `:active`.
 
 ### Scanline
 - Static (no animation) so it never costs a repaint and never fights reduced motion.
@@ -164,6 +204,8 @@ state change), never decorative.
 - Scroll behavior → auto; animation/transition durations clamped to ~0.
 - `Counter` snaps directly to its final value (via `useReducedMotion`).
 - Live pulse collapses to a steady dot.
+- The Processing terminal renders its full log at once and hands off in ~0.5s; the
+  per-line reveal and caret are suppressed. Hover shifts/glows resolve instantly.
 
 ## Accessibility
 
@@ -177,6 +219,19 @@ state change), never decorative.
 - Information is conveyed through multiple channels (color + icon + text), never color alone.
 
 ## Layout
+
+### Landing
+- Two-column hero on `lg` (`grid lg:grid-cols-2`, `items-center`): the left column
+  carries the headline, description, the capability strip, and the upload
+  instrument; the right column carries the decorative Console preview. Collapses to
+  a single stacked column below `lg` (preview drops under the upload, capped width).
+- Below the hero, a trust block: a hairline-celled open-source signal strip
+  (`Open source / Self-hostable / No account / No data kept` plus a link to the
+  source) and a "Private by architecture" section of three hairline-divided
+  guarantee columns (no boxed cards; vertical rules on `sm+`, horizontal rules when
+  stacked).
+- On a successful upload the landing hands off to the Processing terminal boot
+  bridge, which holds until its sequence finishes before the dashboard shell mounts.
 
 ### Shell
 - Desktop: sticky left sidebar (module rail + theme + source + end session) beside a

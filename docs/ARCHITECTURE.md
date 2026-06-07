@@ -62,10 +62,10 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 - Error handling and user feedback
 
 **Key Features:**
-- File upload with drag-and-drop
-- Real-time analytics display
-- CSV format preview
-- Responsive design
+- File upload with drag-and-drop, and a terminal-style `[SYS_ERR]` alert on failure
+- Two-column landing (hero + decorative console preview) and an open-source / privacy trust section
+- A ~2.5s "boot sequence" hand-off on successful upload, then the analytics dashboard
+- Themeable dark/light "Vault Terminal" UI; responsive; reduced-motion aware
 
 **Technology Stack:**
 - React 19 + TypeScript
@@ -350,7 +350,7 @@ Return session_id + mapping_info
     ↓
 React frontend stores session_id
     ↓
-Display success + format preview
+Play the Processing terminal boot sequence (~2.5s), then reveal the dashboard
 ```
 
 ### Analytics Flow
@@ -574,6 +574,6 @@ React frontend displays results
 
 ---
 
-**Last Updated:** 2026-06-02  
+**Last Updated:** 2026-06-07  
 **Version:** 2.0.0  
 **Author:** ExpenseEye Team
