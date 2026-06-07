@@ -41,6 +41,15 @@
   --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.025) inset, 0 14px 34px -14px rgba(0, 4, 10, 0.74); /* machined edge highlight + deep well */
   --shadow-panel-hover: 0 1px 0 0 rgba(255, 255, 255, 0.04) inset, 0 22px 46px -16px rgba(0, 4, 10, 0.86); /* deeper well on lift */
 
+  /* Floating nav glass — two states the scroll trigger crossfades between.
+     Dark: white overlays over OLED, barely-there at rest, clear glass + deep
+     well once detached. (Light overrides these for a paper canvas below.) */
+  --nav-bg: rgba(255, 255, 255, 0.04);
+  --nav-border: rgba(255, 255, 255, 0.06);
+  --nav-bg-active: rgba(255, 255, 255, 0.10);
+  --nav-border-active: rgba(255, 255, 255, 0.15);
+  --nav-shadow-active: 0 8px 32px rgba(0, 0, 0, 0.4);
+
   /* focus ring + primary-button foreground */
   --ring: #34d399;
   --on-brand: #03130c;
@@ -87,6 +96,15 @@
 
   --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.18);
   --shadow-panel-hover: 0 2px 4px rgba(15, 23, 42, 0.07), 0 18px 40px -16px rgba(15, 23, 42, 0.26);
+
+  /* Floating nav glass on paper: translucent white frost (not white-on-white)
+     with a faint ink hairline at rest, lifting to a denser frost + ink shadow
+     once scrolled, so the same rest→active jump reads on a light canvas. */
+  --nav-bg: rgba(255, 255, 255, 0.30);
+  --nav-border: rgba(15, 23, 42, 0.06);
+  --nav-bg-active: rgba(255, 255, 255, 0.75);
+  --nav-border-active: rgba(15, 23, 42, 0.14);
+  --nav-shadow-active: 0 8px 28px rgba(15, 23, 42, 0.15);
 
   --ring: #047857;
   --on-brand: #ffffff;

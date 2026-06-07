@@ -885,10 +885,16 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
         <header className="sticky top-0 z-30 px-4 pt-5">
           <div
             data-anim="nav"
-            className={cn(
-              'will-animate mx-auto flex w-full max-w-2xl items-center justify-between gap-6 rounded-full border border-line bg-header px-5 py-2.5 backdrop-blur-xl transition-[box-shadow] duration-[400ms] ease-out sm:w-max sm:gap-12 sm:px-6 sm:py-3',
-              scrolled ? 'shadow-none ring-0' : 'shadow-panel ring-1 ring-line-strong'
-            )}
+            // State colors/shadow driven inline from theme tokens (white overlays
+            // in dark, frosted white + ink shadow in light) so the rest→scrolled
+            // jump reads on either canvas. Inline avoids Tailwind parsing a bare
+            // var() shadow as a shadow-color. The transition lives in the class.
+            style={{
+              backgroundColor: scrolled ? 'var(--nav-bg-active)' : 'var(--nav-bg)',
+              borderColor: scrolled ? 'var(--nav-border-active)' : 'var(--nav-border)',
+              boxShadow: scrolled ? 'var(--nav-shadow-active)' : '0 0 0 0 rgba(0,0,0,0)',
+            }}
+            className="will-animate mx-auto flex w-full max-w-2xl items-center justify-between gap-6 rounded-full border px-5 py-2.5 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-[400ms] ease-out sm:w-max sm:gap-12 sm:px-6 sm:py-3"
           >
             <div className="flex items-center gap-2.5">
               <EyeMark className="h-7 w-7 text-txt" />
@@ -1023,7 +1029,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
         <footer className="mt-8 border-t border-line">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <p className="font-mono text-xs uppercase tracking-wider text-txt-muted">
-              ExpenseEye · {new Date().getFullYear()}
+              Expense<span className="text-brand">Eye</span> · {new Date().getFullYear()}
             </p>
             <div className="flex flex-col gap-2 text-xs text-txt-faint sm:flex-row sm:items-center sm:gap-5">
               <a
