@@ -95,7 +95,7 @@
   --brand-rgb: 4 120 87;          /* emerald-700 — live / positive / primary */
   --brand-light-rgb: 5 150 105;   /* emerald-600 (hover) */
   --accent-rgb: 14 116 144;       /* cyan-700 — ML / forecast */
-  --accent-light-rgb: 8 145 178;  /* cyan-600 */
+  --accent-light-rgb: 21 94 117;  /* cyan-800 — deep enough for small text on white (AA 6:1+) */
   --success-rgb: 4 120 87;        /* emerald-700 */
   --danger-rgb: 225 29 72;        /* rose-600 */
   --warning-rgb: 180 83 9;        /* amber-700 */

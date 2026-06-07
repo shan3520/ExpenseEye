@@ -40,17 +40,17 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 divide-x divide-line rounded-md border border-line">
+      <div className="grid grid-cols-1 divide-y divide-line rounded-md border border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="p-4">
-          <div className="kpi-label"><BarChart3 className="h-3.5 w-3.5" /><span>Analyzed</span></div>
+          <div className="kpi-label"><BarChart3 className="h-3.5 w-3.5" aria-hidden="true" /><span>Analyzed</span></div>
           <div className="kpi-value"><Counter value={data.summary.total_analyzed} /></div>
         </div>
         <div className="p-4">
-          <div className="kpi-label text-danger"><AlertTriangle className="h-3.5 w-3.5" /><span>Over</span></div>
+          <div className="kpi-label text-danger"><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /><span>Over</span></div>
           <div className="kpi-value text-danger"><Counter value={data.summary.overspending_count} /></div>
         </div>
         <div className="p-4">
-          <div className="kpi-label text-success"><CheckCircle className="h-3.5 w-3.5" /><span>Normal</span></div>
+          <div className="kpi-label text-success"><CheckCircle className="h-3.5 w-3.5" aria-hidden="true" /><span>Normal</span></div>
           <div className="kpi-value text-success"><Counter value={data.summary.normal_count} /></div>
         </div>
       </div>

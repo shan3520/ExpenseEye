@@ -225,7 +225,7 @@ function App() {
                 />
                 <span className="flex-1">{m.nav}</span>
                 {m.ml && (
-                  <span className="font-mono text-micro font-semibold uppercase tracking-wider text-accent/80">
+                  <span className="font-mono text-micro font-semibold uppercase tracking-wider text-accent">
                     ml
                   </span>
                 )}
@@ -356,7 +356,7 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
               href={REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-9 w-9 items-center justify-center text-txt-faint transition-colors hover:text-txt"
+              className="flex h-11 w-11 items-center justify-center text-txt-faint transition-colors hover:text-txt"
               aria-label="GitHub repository"
             >
               <GithubMark className="h-5 w-5" />

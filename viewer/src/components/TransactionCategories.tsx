@@ -86,13 +86,15 @@ export function TransactionCategories({ sessionId }: Props) {
         <div className="inset overflow-hidden">
           <button
             onClick={() => setShowCard((v) => !v)}
+            aria-expanded={showCard}
+            aria-controls="model-card-panel"
             className="flex w-full items-center justify-between px-4 py-3 text-data font-semibold text-txt transition-colors hover:bg-tint-2 cursor-pointer"
           >
-            <span className="flex items-center gap-2"><Cpu className="h-4 w-4 text-txt-faint" /> Model card &amp; evaluation</span>
-            <ChevronDown className={`h-4 w-4 text-txt-faint transition-transform ${showCard ? 'rotate-180' : ''}`} />
+            <span className="flex items-center gap-2"><Cpu className="h-4 w-4 text-txt-faint" aria-hidden="true" /> Model card &amp; evaluation</span>
+            <ChevronDown className={`h-4 w-4 text-txt-faint transition-transform ${showCard ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
           {showCard && (
-            <div className="space-y-4 border-t border-line p-4">
+            <div id="model-card-panel" className="space-y-4 border-t border-line p-4">
               <p className="text-xs text-txt-muted">
                 <span className="font-mono text-txt">{card.model}</span> · {card.n_samples} labeled samples · {card.n_classes} categories
               </p>

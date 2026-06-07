@@ -38,17 +38,12 @@ export default {
           3: "var(--tint-3)",
         },
         brand: {
-          DEFAULT: "rgb(var(--brand-rgb) / <alpha-value>)", // amber-gold — trust / "watch this"
+          DEFAULT: "rgb(var(--brand-rgb) / <alpha-value>)", // phosphor green — live / positive / primary
           light: "rgb(var(--brand-light-rgb) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)", // violet — tech / ML / forecast
+          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)", // cyan — ML / forecast / technical
           light: "rgb(var(--accent-light-rgb) / <alpha-value>)",
-        },
-        ink: {
-          DEFAULT: "#0F172A",
-          surface: "#1E293B",
-          raised: "#334155",
         },
         success: "rgb(var(--success-rgb) / <alpha-value>)",
         danger: "rgb(var(--danger-rgb) / <alpha-value>)",

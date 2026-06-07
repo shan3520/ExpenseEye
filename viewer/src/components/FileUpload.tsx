@@ -111,7 +111,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                 </div>
                 <button
                   onClick={clearFile}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-tint-3 hover:text-txt cursor-pointer"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-txt-muted transition-colors hover:bg-tint-3 hover:text-txt cursor-pointer"
                   disabled={isUploading}
                   aria-label="Remove file"
                 >

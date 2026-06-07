@@ -59,7 +59,7 @@ export function ThemeToggle({ withLabel = false, className }: { withLabel?: bool
       aria-label={label}
       title={label}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-md text-txt-faint transition-colors hover:bg-tint-2 hover:text-txt cursor-pointer',
+        'flex h-11 w-11 items-center justify-center rounded-md text-txt-faint transition-colors hover:bg-tint-2 hover:text-txt cursor-pointer',
         className
       )}
     >
