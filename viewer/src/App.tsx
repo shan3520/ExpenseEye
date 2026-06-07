@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
-import { LogOut, TrendingUp, TrendingDown, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
+import { LogOut, TrendingUp, TrendingDown, Tags, ShieldAlert, CalendarClock, BarChart3, ShieldCheck, Cpu, Lock } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
 import { SessionTape, shortId } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
@@ -440,6 +440,107 @@ function ConsolePreview() {
   );
 }
 
+/**
+ * Trust + privacy block below the hero. A privacy-first finance tool has to earn
+ * the right to ask for a bank statement, so this section trades on what's
+ * verifiable rather than invented social proof: it's open source, self-hostable,
+ * accountless, and ephemeral. The three guarantees are worded to the real
+ * architecture (the CSV is parsed by ExpenseEye's own backend, not a third
+ * party, and you can run the whole stack yourself), never the false "it never
+ * leaves your browser" claim. Hairline-divided columns, not boxed cards, per the
+ * Vault Terminal "one flat surface, dividers not boxes" rule. Tokens throughout,
+ * so it tracks both themes.
+ */
+function PrivacyTrust() {
+  // Verifiable claims only — each is true whether ExpenseEye runs on the public
+  // demo or a machine you host yourself. No fabricated customers.
+  const signals = ['Open source', 'Self-hostable', 'No account', 'No data kept'];
+
+  const guarantees = [
+    {
+      icon: ShieldCheck,
+      title: 'No third-party services',
+      body: 'Your statement is parsed by ExpenseEye itself, never handed off to an outside processor.',
+    },
+    {
+      icon: Cpu,
+      title: 'Models you can run yourself',
+      body: 'Categorization and forecasting are part of the open-source stack. Self-host them on your own machine.',
+    },
+    {
+      icon: Lock,
+      title: 'Ephemeral by default',
+      body: 'When the session ends your data is deleted. Nothing is persisted, nothing is sold.',
+    },
+  ];
+
+  return (
+    <section
+      aria-labelledby="privacy-heading"
+      className="mt-20 animate-fade-rise border-t border-line pt-12 [animation-delay:240ms] lg:mt-28 lg:pt-16"
+    >
+      {/* Open-source credibility — verifiable signals + a link to read the code,
+          not a customer logo wall. Hairline-celled like the session tape. */}
+      <div className="mb-14 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-y-2">
+          {signals.map((s, i) => (
+            <span
+              key={s}
+              className={cn(
+                'px-3.5 font-mono text-micro uppercase tracking-wider text-txt-faint first:pl-0',
+                i > 0 && 'border-l border-line'
+              )}
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+        <a
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 self-start font-mono text-micro uppercase tracking-wider text-txt-muted transition-colors hover:text-brand active:translate-y-px sm:self-auto"
+        >
+          <GithubMark className="h-4 w-4" />
+          Read the source
+        </a>
+      </div>
+
+      <h2
+        id="privacy-heading"
+        className="font-display text-2xl font-bold tracking-tight text-txt text-balance sm:text-3xl"
+      >
+        Private by architecture
+      </h2>
+      <p className="mt-3 max-w-[60ch] text-base leading-relaxed text-txt-muted text-pretty">
+        ExpenseEye is open source and self-hostable. No accounts, no third-party processors, and
+        nothing kept once your session ends.
+      </p>
+
+      {/* Three guarantees — hairline-divided columns, not boxed cards. Stacks with
+          horizontal rules on mobile, vertical rules between columns on sm+. */}
+      <div className="mt-10 grid grid-cols-1 sm:grid-cols-3">
+        {guarantees.map(({ icon: Icon, title, body }, i) => (
+          <div
+            key={title}
+            className={cn(
+              'border-t border-line py-8 first:border-t-0 first:pt-0',
+              'sm:border-l sm:border-t-0 sm:px-7 sm:py-0 sm:first:border-l-0 sm:first:pl-0 sm:last:pr-0',
+              i === 0 && 'sm:border-l-0'
+            )}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-line bg-tint-1">
+              <Icon className="h-[18px] w-[18px] text-brand" aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-base font-semibold text-txt">{title}</h3>
+            <p className="mt-2 max-w-[42ch] text-sm leading-relaxed text-txt-muted text-pretty">{body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ------------------------------------------------------------------ Landing //
 function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void }) {
   const capabilities = [
@@ -523,6 +624,9 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
             <ConsolePreview />
           </div>
         </div>
+
+        {/* Earn the right to ask for a bank statement */}
+        <PrivacyTrust />
       </main>
 
       <footer className="border-t border-line">
