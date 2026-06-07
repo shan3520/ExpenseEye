@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
-import { LogOut, TrendingUp, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
+import { LogOut, TrendingUp, TrendingDown, Tags, ShieldAlert, CalendarClock, BarChart3 } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
 import { SessionTape, shortId } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
@@ -337,6 +337,109 @@ function App() {
   );
 }
 
+/**
+ * Stylized, non-interactive preview of the Vault Terminal console. Built from the
+ * real design-system primitives (the session tape, .kpi-label/.kpi-value legends,
+ * the cyan ML tag, the live-dot, the .inset surface) so it reads as a faithful
+ * mini-instance of the actual board, not a generic fake screenshot. Purely
+ * decorative: aria-hidden, no pointer events, figures are illustrative mocks
+ * (never fetched, never shown after a real upload). Fills the desktop hero's
+ * right half with a concrete promise of what the upload unlocks. Themes via
+ * tokens, so it tracks light/dark automatically.
+ */
+function ConsolePreview() {
+  // mock — illustrative figures only; the live board derives everything from the
+  // user's own statement. Last three bars are the projected (ML) horizon.
+  const bars = [42, 55, 47, 63, 51, 74, 60, 81, 58, 88, 72, 79];
+  const subs = [
+    { name: 'Netflix', amount: '$15.49' },
+    { name: 'Adobe CC', amount: '$54.99' },
+  ];
+
+  return (
+    <div aria-hidden="true" className="pointer-events-none select-none">
+      {/* Telemetry strip — the console's signature status line */}
+      <div className="flex h-9 items-center overflow-hidden rounded-t-lg border border-line bg-header">
+        <div className="flex shrink-0 items-center gap-2 pl-4 pr-3.5">
+          <span className="live-dot" />
+          <span className="font-mono text-micro font-semibold uppercase tracking-wider text-brand">Live</span>
+        </div>
+        <div className="tape-cell border-l border-line">
+          <span className="tape-key">SES</span>
+          <span className="readout tape-val">7F3A9C2E</span>
+        </div>
+        <div className="tape-cell border-l border-line">
+          <span className="tape-key">MOD</span>
+          <span className="readout text-brand">Forecast</span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="rounded-b-lg border border-t-0 border-line bg-panel p-4 shadow-panel sm:p-5">
+        {/* KPI pair — instrument legends over mono readouts, hairline-divided */}
+        <div className="grid grid-cols-2 rounded-md border border-line">
+          <div className="p-3.5">
+            <span className="kpi-label">Monthly spend</span>
+            <div className="kpi-value text-[1.4rem]">$4,182</div>
+            <div className="mt-1.5 flex items-center gap-1 font-mono text-micro text-brand">
+              <TrendingDown className="h-3 w-3" aria-hidden="true" />
+              6.2% vs prior
+            </div>
+          </div>
+          <div className="border-l border-line p-3.5">
+            <div className="flex items-center gap-1.5">
+              <span className="kpi-label">Forecast</span>
+              <span className="tag-ml">ML</span>
+            </div>
+            <div className="kpi-value text-[1.4rem] text-accent-light">$3,920</div>
+            <div className="mt-1.5 font-mono text-micro text-txt-faint">next 30 days</div>
+          </div>
+        </div>
+
+        {/* Cash-flow bars — solid history in phosphor, projected horizon in cyan */}
+        <div className="inset mt-4 p-3.5">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="font-mono text-micro uppercase tracking-wider text-txt-faint">Cash flow · 12 wk</span>
+            <span className="flex items-center gap-1 font-mono text-micro text-accent">
+              <span className="h-1.5 w-1.5 rounded-sm bg-accent/60" />
+              projected
+            </span>
+          </div>
+          <div className="flex h-20 items-end gap-1.5">
+            {bars.map((h, i) => (
+              <div
+                key={i}
+                className={cn('flex-1 rounded-sm', i >= 9 ? 'bg-accent/35' : 'bg-brand/25')}
+                style={{ height: `${h}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Recurring subscriptions — a compact slice of the radar */}
+        <div className="mt-4 overflow-hidden rounded-md border border-line">
+          <div className="flex items-center justify-between border-b border-line bg-tint-1 px-3.5 py-2">
+            <span className="font-mono text-micro uppercase tracking-wider text-txt-faint">Recurring detected</span>
+            <span className="font-mono text-micro text-txt-faint">{subs.length}</span>
+          </div>
+          {subs.map((s, i) => (
+            <div
+              key={s.name}
+              className={cn('flex items-center justify-between px-3.5 py-2', i > 0 && 'border-t border-line')}
+            >
+              <span className="text-data text-txt-muted">{s.name}</span>
+              <span className="font-mono text-data text-txt">
+                {s.amount}
+                <span className="text-txt-faint">/mo</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ Landing //
 function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void }) {
   const capabilities = [
@@ -377,36 +480,48 @@ function Landing({ onUploadSuccess }: { onUploadSuccess: (id: string) => void })
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 sm:px-8 lg:py-16">
-        {/* Positioning — full-width, left-aligned */}
-        <div className="animate-fade-rise">
-          <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-txt sm:text-5xl lg:text-6xl">
-            Drop. Parse.
-            <br />
-            <span className="text-brand">Know.</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
-            Drop in a bank statement and ExpenseEye reads it the way an analyst would:
-            forecasting next month, flagging the charges that don't fit, and surfacing the
-            subscriptions you forgot about.
-          </p>
+        {/* Two-up on desktop: positioning + intake on the left, a preview of the
+            console on the right so the empty half carries the product's promise.
+            Collapses to a single stacked column below lg. */}
+        <div className="grid grid-cols-1 items-center gap-x-16 gap-y-14 lg:grid-cols-2">
+          {/* Left — positioning + the intake instrument */}
+          <div>
+            <div className="animate-fade-rise">
+              <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-txt sm:text-5xl lg:text-6xl">
+                Drop. Parse.
+                <br />
+                <span className="text-brand">Know.</span>
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-txt-muted text-pretty">
+                Drop in a bank statement and ExpenseEye reads it the way an analyst would:
+                forecasting next month, flagging the charges that don't fit, and surfacing the
+                subscriptions you forgot about.
+              </p>
 
-          {/* Capability strip — inline legend, not a boxed grid */}
-          <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
-            {capabilities.map(({ icon: Icon, label, note }) => (
-              <li key={label} className="flex items-center gap-2.5">
-                <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                <div className="leading-tight">
-                  <span className="block text-sm font-medium text-txt">{label}</span>
-                  <span className="block font-mono text-micro text-txt-faint">{note}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+              {/* Capability strip — inline legend, not a boxed grid */}
+              <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
+                {capabilities.map(({ icon: Icon, label, note }) => (
+                  <li key={label} className="flex items-center gap-2.5">
+                    <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                    <div className="leading-tight">
+                      <span className="block text-sm font-medium text-txt">{label}</span>
+                      <span className="block font-mono text-micro text-txt-faint">{note}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-        {/* The instrument */}
-        <div className="mt-10 max-w-2xl animate-fade-rise [animation-delay:80ms]">
-          <FileUpload onUploadSuccess={onUploadSuccess} />
+            {/* The instrument */}
+            <div className="mt-10 max-w-xl animate-fade-rise [animation-delay:80ms]">
+              <FileUpload onUploadSuccess={onUploadSuccess} />
+            </div>
+          </div>
+
+          {/* Right — a stylized peek at the board the upload unlocks */}
+          <div className="animate-fade-rise mx-auto w-full max-w-md [animation-delay:160ms] lg:max-w-none">
+            <ConsolePreview />
+          </div>
         </div>
       </main>
 
