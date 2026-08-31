@@ -20,7 +20,7 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
     const fetchOverspending = async () => {
       try {
         setLoading(true);
-        const response = await api.get<OverspendingResponse>('/overspending', { params: { session_id: sessionId } });
+        const response = await api.get<OverspendingResponse>('/overspending', { headers: { 'X-Session-Id': sessionId } });
         setData(response.data); setError(null);
       } catch (err: unknown) {
         if (axios.isAxiosError(err)) setError(err.response?.data?.error || "Failed to fetch overspending data.");

@@ -19,7 +19,7 @@ export function AnomalyDetection({ sessionId }: Props) {
     const run = async () => {
       try {
         setLoading(true);
-        const res = await api.get<AnomaliesResponse>('/anomalies', { params: { session_id: sessionId } });
+        const res = await api.get<AnomaliesResponse>('/anomalies', { headers: { 'X-Session-Id': sessionId } });
         setData(res.data); setError(null);
       } catch (err: unknown) {
         if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Failed to load anomalies.');

@@ -255,7 +255,7 @@ def find_header_row(csv_path):
         
         # If no header found, assume first row
         return 0
-    except:
+    except Exception:
         return 0
 
 
@@ -281,7 +281,7 @@ def detect_date_format(df, date_col):
             parsed = pd.to_datetime(date_str, dayfirst=True, errors='coerce')
             if not pd.isna(parsed):
                 dayfirst_success += 1
-        except:
+        except Exception:
             pass
         
         # Try monthfirst (MM/DD/YYYY)
@@ -289,7 +289,7 @@ def detect_date_format(df, date_col):
             parsed = pd.to_datetime(date_str, dayfirst=False, errors='coerce')
             if not pd.isna(parsed):
                 monthfirst_success += 1
-        except:
+        except Exception:
             pass
     
     # If both work equally, check for ambiguous dates
@@ -310,7 +310,7 @@ def detect_date_format(df, date_col):
                 # If second part > 12, it must be day (MM/DD/YYYY)
                 if second_part > 12:
                     return False
-            except:
+            except Exception:
                 continue
     
     # Default to DD/MM/YYYY (international standard used by most countries)
@@ -378,6 +378,10 @@ def load_csv_to_db(csv_path, db_path):
     
     
     
+    # Parse all transaction dates in one vectorized pass instead of calling
+    # pd.to_datetime per row (far cheaper on large statements).
+    parsed_dates = pd.to_datetime(df[date_col], errors='coerce', dayfirst=dayfirst)
+
     # Connect to SQLite database
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -396,19 +400,20 @@ def load_csv_to_db(csv_path, db_path):
         # Clear existing data
         cursor.execute('DELETE FROM transactions')
         
-        # Insert data row by row
+        # Build the rows first, then insert them all in one executemany call.
         rows_inserted = 0
         rows_skipped = 0
-        
-        for index, row in df.iterrows():
+        to_insert = []
+
+        for pos, (_, row) in enumerate(df.iterrows()):
             try:
-                # Parse transaction date with auto-detected format
-                txn_date = pd.to_datetime(row[date_col], errors='coerce', dayfirst=dayfirst)
+                # Use the pre-parsed (vectorized) date for this row.
+                txn_date = parsed_dates.iat[pos]
                 if pd.isna(txn_date):
                     rows_skipped += 1
                     continue
                 txn_date = txn_date.date()
-                
+
                 # Get description (use placeholder if column doesn't exist)
                 if desc_col:
                     description = row[desc_col]
@@ -418,7 +423,7 @@ def load_csv_to_db(csv_path, db_path):
                         description = str(description).strip()
                 else:
                     description = 'TRANSACTION'
-                
+
                 # Calculate amount
                 if pattern == 'drcr':
                     amount = normalize_amount(row, 'drcr', drcr_col, amount_col)
@@ -426,24 +431,27 @@ def load_csv_to_db(csv_path, db_path):
                     amount = normalize_amount(row, 'debit_credit', debit_col, credit_col)
                 else:
                     amount = normalize_amount(row, 'signed', amount_col)
-                
+
                 if amount is None:
-                    print(f"[CSV Loader] Skipping row {index}: Invalid amount")
+                    print(f"[CSV Loader] Skipping row {pos}: Invalid amount")
                     rows_skipped += 1
                     continue
-                
-                # Insert into database
-                cursor.execute(
-                    'INSERT INTO transactions (txn_date, description, amount) VALUES (?, ?, ?)',
-                    (txn_date, description, amount)
-                )
+
+                to_insert.append((txn_date, description, amount))
                 rows_inserted += 1
-                
+
             except Exception as e:
-                print(f"[CSV Loader] Skipping row {index}: {str(e)}")
+                print(f"[CSV Loader] Skipping row {pos}: {str(e)}")
                 rows_skipped += 1
                 continue
-        
+
+        # Batch insert every valid row in a single round-trip.
+        if to_insert:
+            cursor.executemany(
+                'INSERT INTO transactions (txn_date, description, amount) VALUES (?, ?, ?)',
+                to_insert
+            )
+
         # Commit the transaction
         conn.commit()
         

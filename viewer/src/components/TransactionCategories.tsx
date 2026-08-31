@@ -23,7 +23,7 @@ export function TransactionCategories({ sessionId }: Props) {
       try {
         setLoading(true);
         const [c, mc] = await Promise.all([
-          api.get<CategorizeResponse>('/categorize', { params: { session_id: sessionId } }),
+          api.get<CategorizeResponse>('/categorize', { headers: { 'X-Session-Id': sessionId } }),
           api.get<ModelCardResponse>('/model-card'),
         ]);
         setData(c.data);

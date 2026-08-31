@@ -22,7 +22,7 @@ export function CashFlowForecast({ sessionId }: Props) {
     const run = async () => {
       try {
         setLoading(true);
-        const res = await api.get<ForecastResponse>('/forecast', { params: { session_id: sessionId } });
+        const res = await api.get<ForecastResponse>('/forecast', { headers: { 'X-Session-Id': sessionId } });
         setData(res.data); setError(null);
       } catch (err: unknown) {
         if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Failed to load forecast.');

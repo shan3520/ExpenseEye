@@ -32,7 +32,7 @@ export function SubscriptionsTable({ sessionId }: SubscriptionsTableProps) {
     const fetchSubscriptions = async () => {
       try {
         setLoading(true);
-        const response = await api.get<SubscriptionsResponse>('/subscriptions', { params: { session_id: sessionId } });
+        const response = await api.get<SubscriptionsResponse>('/subscriptions', { headers: { 'X-Session-Id': sessionId } });
         setData(response.data); setError(null);
       } catch (err: unknown) {
         if (axios.isAxiosError(err)) setError(err.response?.data?.error || "Failed to fetch subscriptions.");
