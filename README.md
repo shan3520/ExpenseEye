@@ -15,15 +15,15 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **🌐 Live demo:** [expenseeye.pages.dev](https://expenseeye.pages.dev) (frontend) · API at `https://smartspend-v975.onrender.com`
-> _First request after idle may take ~10-15s while the free-tier backend wakes from sleep._
+> _First request after idle can take up to ~60s while the free-tier backend wakes from sleep; the app shows a waking state and waits it out._
 
 ## Overview
 
-ExpenseEye is a privacy-first financial analytics platform that helps you understand your spending patterns without sharing your data with third parties. Upload your bank statement CSV, and get instant insights into recurring subscriptions, overspending months, and — powered by real machine learning — a cash-flow forecast, automatic transaction categorization, and anomaly detection.
+ExpenseEye is a privacy-conscious financial analytics platform that helps you understand your spending patterns. It is open-source and self-hostable; on the public demo your bank-statement CSV is parsed by ExpenseEye's own API (on infrastructure the operator controls) — session-scoped and auto-deleted — never sold or handed to a third-party data broker. Upload your CSV and get instant insights into recurring subscriptions, overspending months, and — powered by real machine learning — a cash-flow forecast, automatic transaction categorization, and anomaly detection.
 
 **Key Features:**
-- 🔒 **Privacy-First**: All processing happens on your server - no data sharing
-- 📊 **Smart CSV Auto-Mapper**: Handles 20+ bank CSV formats automatically (incl. thousands separators, currency symbols, CR/DR markers)
+- 🔒 **Privacy-conscious**: parsed by ExpenseEye's own API (self-hostable), session-scoped and auto-deleted — never sold or shared with data brokers
+- 📊 **Smart CSV Auto-Mapper**: handles common real-world layouts — ISO / DD-MM / MM-DD dates, DrCr+Amount, Debit/Credit and signed-amount columns, thousands separators, currency symbols and codes, and CR/DR markers
 - 💳 **Subscription Detection**: Identifies recurring payments with confidence scores
 - 📈 **Overspending Analysis**: Statistical detection of unusual spending months
 - 🔮 **Cash-Flow Forecast (ML)**: Holt-Winters time-series forecast of the next 30 days / next month, with MAE/RMSE/MAPE accuracy reporting
@@ -429,12 +429,12 @@ python diagnose_csv.py your_file.csv
 
 ## Security & Privacy
 
-- **No external API calls**: All processing happens locally
-- **Session-based storage**: SQLite databases in temp directory
-- **Automatic cleanup**: Databases deleted after session expires
-- **No persistent storage**: No data retention
+- **Self-hostable**: run the whole stack yourself so nothing leaves your machine. On the public demo, your statement is parsed by ExpenseEye's own API (on infrastructure the operator controls), not a third-party processor.
+- **Session-based storage**: each upload gets an isolated SQLite database in the server's temp directory, keyed by an unguessable session UUID
+- **Automatic cleanup**: session databases are deleted on exit (`DELETE /session/<id>`) and swept by a TTL reaper (default 30 min) — no manual cleanup needed
+- **Minimal retention**: nothing persists beyond the session TTL; no accounts, analytics, or profiles are kept
 - **File size limits**: 10MB maximum upload size
-- **Input validation**: Strict CSV parsing with error handling
+- **Input validation**: UUID-validated session paths, strict CSV parsing, and a per-IP rate limit on the upload/compute endpoints
 
 ## Troubleshooting
 

@@ -6,12 +6,6 @@ __pycache__/
 *.xlsx
 test_data/
 sample_templates/
-test_csv_formats.py
-diagnose_csv.py
-validate_accuracy.py
-quick_validate.py
-simple_validate.py
-test_load.py
 *.log
 
 # ML artifacts that MUST be versioned. The seed/sample data override the broad
@@ -26,8 +20,3 @@ node_modules/
 dist/
 .vite/
 *.local
-
-# Agent skills — local-only, never version-controlled
-.agents/
-.impeccable/
-.claude/skills/
