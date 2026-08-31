@@ -1,3 +1,9 @@
+export interface SkippedRow {
+  row: number | null;
+  reason: string;
+  values: string[];
+}
+
 export interface UploadResponse {
   success: boolean;
   session_id: string;
@@ -5,15 +11,19 @@ export interface UploadResponse {
   transactions_loaded: number;
   mapping_info: {
     date_column: string;
+    date_format: string;
     description_column: string;
     amount_pattern: string;
     rows_skipped: number;
+    skipped_rows?: SkippedRow[];
   };
 }
 
 export interface Subscription {
   description: string;
   amount: number;
+  amount_min?: number;
+  amount_max?: number;
   frequency: string;
   avg_gap: number;
   occurrences: number;

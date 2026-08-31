@@ -17,6 +17,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mappingInfo, setMappingInfo] = useState<UploadResponse['mapping_info'] | null>(null);
+  const [slowWake, setSlowWake] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
@@ -45,19 +46,23 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
 
   const handleUpload = async () => {
     if (!file) return;
-    setIsUploading(true); setError(null);
+    setIsUploading(true); setError(null); setSlowWake(false);
     const formData = new FormData();
     formData.append('file', file);
     const controller = new AbortController();
     uploadAbortRef.current = controller;
+    // After ~8s an idle Render instance is almost certainly cold-starting, so
+    // switch the status text to an honest "waking" message rather than implying
+    // the analysis itself is slow (P0-1).
+    const wakeTimer = window.setTimeout(() => setSlowWake(true), 8000);
     try {
       const response = await api.post<UploadResponse>('/upload', formData, { signal: controller.signal });
       if (response.data.success) { setMappingInfo(response.data.mapping_info); onUploadSuccess(response.data.session_id); }
     } catch (err: unknown) {
       if (axios.isCancel(err)) return;
       const apiError = axios.isAxiosError(err) ? err.response?.data?.error : undefined;
-      setError(apiError || "Could not reach the parser. Make sure the backend is running.");
-    } finally { setIsUploading(false); }
+      setError(apiError || "Couldn't reach the parser — it may still be waking up. Please try again in a moment.");
+    } finally { window.clearTimeout(wakeTimer); setIsUploading(false); setSlowWake(false); }
   };
 
   const clearFile = () => {
@@ -151,7 +156,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Analyzing…
+                    {slowWake ? 'Waking the server (~1 min)…' : 'Analyzing…'}
                   </>
                 ) : (
                   'Analyze statement'
@@ -163,7 +168,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
 
         <p className="mt-4 flex items-center gap-2 text-caption text-txt-faint">
           <span className="h-1.5 w-1.5 rounded-full bg-success" />
-          Parsed on a local server and deleted when the session ends.
+          Parsed on ExpenseEye's server and deleted when the session ends.
         </p>
       </div>
 
@@ -188,6 +193,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
           </div>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
             <Mapped label="Date" value={mappingInfo.date_column} />
+            <Mapped label="Date format" value={mappingInfo.date_format} />
             <Mapped label="Description" value={mappingInfo.description_column} />
             <Mapped label="Amount" value={mappingInfo.amount_pattern} />
             {mappingInfo.rows_skipped > 0 && (
@@ -197,6 +203,20 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
               </div>
             )}
           </dl>
+          {/* Honest exception list: which rows were dropped and why (P2-13). */}
+          {mappingInfo.skipped_rows && mappingInfo.skipped_rows.length > 0 && (
+            <ul className="mt-3 space-y-1 border-t border-success/20 pt-3 font-mono text-micro text-txt-muted">
+              {mappingInfo.skipped_rows.slice(0, 5).map((s, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="shrink-0 text-warning">{s.row != null ? `row ${s.row}` : 'row —'}</span>
+                  <span className="truncate">{s.reason}</span>
+                </li>
+              ))}
+              {mappingInfo.rows_skipped > 5 && (
+                <li className="text-txt-faint">+{mappingInfo.rows_skipped - 5} more…</li>
+              )}
+            </ul>
+          )}
         </div>
       )}
     </div>

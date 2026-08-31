@@ -115,7 +115,7 @@
   --accent-rgb: 14 116 144;       /* cyan-700 — ML / forecast */
   --accent-light-rgb: 21 94 117;  /* cyan-800 — deep enough for small text on white (AA 6:1+) */
   --success-rgb: 4 120 87;        /* emerald-700 */
-  --danger-rgb: 225 29 72;        /* rose-600 */
+  --danger-rgb: 190 18 60;        /* rose-700 — AA (4.5:1+) for small text on white (P2-19) */
   --warning-rgb: 180 83 9;        /* amber-700 */
   --info-rgb: 2 132 199;          /* sky-600 */
 }

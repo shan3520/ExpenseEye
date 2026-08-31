@@ -18,6 +18,7 @@ import {
   SignOut,
 } from '@phosphor-icons/react';
 import { FileUpload } from '@/components/FileUpload';
+import { warmUpBackend, deleteSession } from '@/lib/api';
 import { SessionTape, shortId } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
 import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
@@ -192,6 +193,10 @@ function App() {
   const notMobile = useMediaQuery('(min-width: 769px)');
   useSmoothScroll(pointerFine && notMobile && !reduce);
 
+  // Kick off the backend cold-start on mount so it is likely warm by the time
+  // the user submits a statement (P0-1). Non-blocking; failures are ignored.
+  useEffect(() => { warmUpBackend(); }, []);
+
   // Dashboard bento entrance: stagger the module cards in once per session.
   const gridRef = useRef<HTMLDivElement>(null);
   const animatedSession = useRef<string | null>(null);
@@ -202,6 +207,9 @@ function App() {
   };
 
   const handleLogout = () => {
+    // Delete the session's server-side data on exit, backing the UI's
+    // "deleted on exit" promise (P0-4), then clear local state.
+    if (sessionId) deleteSession(sessionId);
     setSessionId(null);
     setBooting(false);
     setActiveId(MODULES[0].id);
@@ -398,7 +406,7 @@ function App() {
               Spending overview
             </h1>
             <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-txt-muted">
-              Five read-outs on this statement, parsed locally. Scan the board or jump from the
+              Five read-outs on this statement, parsed server-side, per session. Scan the board or jump from the
               rail; the tape above tracks what you're looking at.
             </p>
           </div>
@@ -422,7 +430,7 @@ function App() {
                 <span aria-hidden="true">·</span>
                 <span>{MODULES.length} modules loaded</span>
                 <span aria-hidden="true">·</span>
-                <span>parsed locally, nothing stored</span>
+                <span>session-scoped, deleted on exit</span>
               </p>
               <p className="font-mono">ExpenseEye · {new Date().getFullYear()}</p>
             </div>
@@ -540,8 +548,8 @@ function ConsolePreview() {
   // user's own statement. Last three bars are the projected (ML) horizon.
   const bars = [42, 55, 47, 63, 51, 74, 60, 81, 58, 88, 72, 79];
   const subs = [
-    { name: 'Netflix', amount: '$15.49' },
-    { name: 'Adobe CC', amount: '$54.99' },
+    { name: 'Netflix', amount: '₹649' },
+    { name: 'Adobe CC', amount: '₹4,230' },
   ];
 
   return (
@@ -550,7 +558,7 @@ function ConsolePreview() {
       <div className="flex h-9 items-center overflow-hidden rounded-t-lg border border-line bg-header">
         <div className="flex shrink-0 items-center gap-2 pl-4 pr-3.5">
           <span className="live-dot" />
-          <span className="font-mono text-micro font-semibold uppercase tracking-wider text-brand">Live</span>
+          <span className="font-mono text-micro font-semibold uppercase tracking-wider text-brand">Demo</span>
         </div>
         <div className="tape-cell border-l border-line">
           <span className="tape-key">SES</span>
@@ -568,7 +576,7 @@ function ConsolePreview() {
         <div className="grid grid-cols-2 rounded-md border border-line">
           <div className="p-3.5">
             <span className="kpi-label">Monthly spend</span>
-            <div className="kpi-value text-[1.4rem]">$4,182</div>
+            <div className="kpi-value text-[1.4rem]">₹1,24,500</div>
             <div className="mt-1.5 flex items-center gap-1 font-mono text-micro text-brand">
               <TrendDown className="h-3 w-3" aria-hidden="true" />
               6.2% vs prior
@@ -579,7 +587,7 @@ function ConsolePreview() {
               <span className="kpi-label">Forecast</span>
               <span className="tag-ml">ML</span>
             </div>
-            <div className="kpi-value text-[1.4rem] text-accent-light">$3,920</div>
+            <div className="kpi-value text-[1.4rem] text-accent-light">₹1,16,800</div>
             <div className="mt-1.5 font-mono text-micro text-txt-faint">next 30 days</div>
           </div>
         </div>
@@ -648,7 +656,7 @@ function ConsolePreview() {
 function PrivacyTrust() {
   // Verifiable claims only — each is true whether ExpenseEye runs on the public
   // demo or a machine you host yourself. No fabricated customers.
-  const signals = ['Open source', 'Self-hostable', 'No account', 'No data kept'];
+  const signals = ['Open source', 'Self-hostable', 'No account', 'Auto-deleted'];
 
   const guarantees = [
     {

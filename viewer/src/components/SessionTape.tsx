@@ -75,7 +75,7 @@ export function SessionTape({ sessionId, activeLabel, moduleCount }: SessionTape
         {/* standing privacy assurance, pushed to the right edge */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 border-l border-line py-1 pl-3.5 pr-4 font-mono text-micro uppercase tracking-wider text-txt-faint">
           <Lock className="h-3 w-3 text-brand/70" aria-hidden="true" />
-          <span>Local · nothing stored</span>
+          <span>Session-scoped · auto-deleted</span>
         </div>
       </div>
     </div>
