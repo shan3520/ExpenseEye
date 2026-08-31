@@ -20,6 +20,14 @@
     "macro_recall": 0.9301,
     "macro_f1": 0.9306
   },
+  "held_out_realistic": {
+    "description": "40 hand-labelled realistic Indian merchant descriptions (data/eval_transactions.csv), a mix of common and out-of-training-vocabulary merchants; model-only metrics, independent of the keyword fallback.",
+    "n_samples": 40,
+    "model_argmax_accuracy": 0.775,
+    "confident_coverage": 0.70,
+    "accuracy_when_confident": 0.893,
+    "note": "The 'metrics' block above is a 25% holdout of the SYNTHETIC seed vocabulary and largely measures memorisation. This block is the honest generalisation estimate; a larger owner-supplied real labelled set is the definitive measure (see remediation brief P1-5)."
+  },
   "per_class": {
     "dining": {
       "precision": 0.9091,

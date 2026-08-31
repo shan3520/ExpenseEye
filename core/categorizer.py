@@ -40,22 +40,37 @@ _model_lock = threading.Lock()
 
 # Keyword rules used as a low-confidence fallback (and to bootstrap if the
 # trained model is unavailable at runtime).
+# NOTE: matched as substrings, first category wins (see _rule_category). Keep
+# keys specific enough not to collide — e.g. bare "jio" is intentionally absent
+# because it would swallow JIOMART (groceries) and JIOHOTSTAR (subscriptions).
 _RULES = {
-    "income": ["salary", "payroll", "dividend", "interest credit", "freelance", "consulting"],
-    "rent": ["rent", "landlord", "accommodation"],
+    "income": ["salary", "payroll", "dividend", "interest credit", "freelance",
+               "consulting", "stipend"],
+    "rent": ["rent", "landlord", "accommodation", "maintenance charge", "society charge"],
     "subscriptions": ["netflix", "spotify", "prime", "disney", "youtube", "icloud",
-                      "adobe", "hotstar", "audible", "gym", "linkedin", "365", "hbo"],
-    "utilities": ["electric", "water", "gas bill", "broadband", "internet", "airtel",
-                  "jio", "vodafone", "comcast", "xfinity", "at&t", "wireless", "utility"],
-    "transport": ["uber", "ola", "lyft", "fuel", "petrol", "metro", "irctc", "redbus",
-                  "parking", "fastag", "oil"],
+                      "adobe", "hotstar", "jiohotstar", "jiocinema", "sonyliv", "zee5",
+                      "audible", "gym", "cult fit", "cultfit", "linkedin", "365", "hbo"],
+    "utilities": ["electric", "electricity", "water bill", "gas bill", "broadband",
+                  "internet", "fibernet", "jio fiber", "jiofiber", "act fibernet",
+                  "airtel", "vodafone", "bescom", "tata power", "adani electricity",
+                  "mahanagar gas", "comcast", "xfinity", "at&t", "wireless",
+                  "postpaid", "utility"],
+    "transport": ["uber", "ola", "rapido", "namma yatri", "nammayatri", "indrive",
+                  "lyft", "fuel", "petrol", "diesel", "metro", "irctc", "redbus",
+                  "bmtc", "bus pass", "indigo", "spicejet", "vistara", "akasa",
+                  "makemytrip", "ixigo", "parking", "fastag", "oil"],
     "dining": ["starbucks", "mcdonald", "domino", "kfc", "subway", "chipotle", "swiggy",
-               "zomato", "eats", "doordash", "taco", "dunkin", "pizza", "cafe", "panera"],
-    "groceries": ["grocery", "foods", "trader joe", "safeway", "aldi", "kroger", "bazaar",
-                  "dmart", "reliance fresh", "tesco", "costco", "sprouts", "lidl", "publix"],
-    "shopping": ["amazon", "flipkart", "myntra", "ajio", "best buy", "target", "ikea",
+               "zomato", "eats", "doordash", "taco", "dunkin", "pizza", "cafe", "coffee",
+               "haldiram", "behrouz", "faasos", "restaurant", "biryani", "panera"],
+    "groceries": ["grocery", "groceries", "foods", "blinkit", "zepto", "instamart",
+                  "bigbasket", "jiomart", "country delight", "licious", "supermarket",
+                  "trader joe", "safeway", "aldi", "kroger", "bazaar", "dmart",
+                  "reliance fresh", "tesco", "costco", "sprouts", "lidl", "publix"],
+    "shopping": ["amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa", "tata neu",
+                 "reliance digital", "urban company", "best buy", "target", "ikea",
                  "nike", "h&m", "zara", "decathlon", "croma", "apple store", "ebay"],
-    "transfers": ["upi", "neft", "imps", "paytm", "venmo", "zelle", "transfer", "google pay"],
+    "transfers": ["upi", "neft", "imps", "rtgs", "paytm", "phonepe", "gpay", "venmo",
+                  "zelle", "transfer", "google pay"],
 }
 
 

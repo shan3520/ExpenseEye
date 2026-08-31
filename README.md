@@ -365,12 +365,19 @@ crashes on sparse data.
 n-grams → **LogisticRegression**, persisted to `models/category_clf.joblib` and
 loaded once at startup. Low-confidence predictions fall back to keyword rules.
 
-**Accuracy (25% stratified holdout of the synthetic seed vocabulary, 9 categories):**
-- **Accuracy 93.1% · Macro Precision 93.8% · Macro Recall 93.0% · Macro F1 93.1%**
-- ⚠️ This holdout shares its merchant vocabulary with training, so it largely measures
-  memorisation, not generalisation. On merchant names outside the seed vocabulary the
-  model mostly defers to the keyword fallback; a held-out set of **unseen real merchants**
-  is the proper measure of real-world coverage (tracked as a follow-up — see P1-5).
+**Accuracy — reported on two datasets, each labelled:**
+- **Synthetic seed holdout** (25% stratified, 9 categories): **Accuracy 93.1% · Macro-F1
+  93.1%**. This holdout shares its merchant vocabulary with training, so it largely
+  measures **memorisation, not generalisation**.
+- **Held-out realistic set** (`data/eval_transactions.csv`, 40 hand-labelled Indian
+  merchants; model-only, independent of the keyword fallback): **argmax accuracy 77.5% ·
+  confident-coverage 70% · accuracy-when-confident 89.3%**. Below the confidence
+  threshold the pipeline falls back to keyword rules. This curated set is *indicative*;
+  a larger **owner-supplied real labelled set** is the definitive generalisation measure
+  (owner-gated, P1-5).
+- The keyword fallback now covers common Indian merchants (quick-commerce, fintech,
+  ride-hailing, streaming); the `jio` rule bug that mislabelled JIOMART as *utilities*
+  is fixed.
 
 Retrain anytime: `python scripts/generate_data.py && python scripts/train_categorizer.py`
 

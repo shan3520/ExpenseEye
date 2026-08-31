@@ -14,6 +14,7 @@ sample_templates/
 !data/seed_transactions.csv
 !data/sample_statement.csv
 !data/sample_statement_iso.csv
+!data/eval_transactions.csv
 
 # Frontend (viewer/)
 node_modules/
