@@ -418,9 +418,21 @@ def load_csv_to_db(csv_path, db_path):
     # Find the actual header row
     header_row = find_header_row(csv_path)
     
-    # Read CSV file with detected header row
+    # Read CSV file with detected header row. Ragged rows (a wrong column
+    # count) are captured and skipped instead of aborting the whole upload
+    # (P1-7): 500 good rows should not be lost because of one bad line.
+    malformed_lines = []
+
+    def _collect_bad_line(bad_line):
+        if len(malformed_lines) < 100:
+            malformed_lines.append([str(c) for c in bad_line])
+        return None  # drop this row and keep going
+
     try:
-        df = pd.read_csv(csv_path, header=header_row)
+        df = pd.read_csv(
+            csv_path, header=header_row,
+            engine='python', on_bad_lines=_collect_bad_line,
+        )
     except FileNotFoundError:
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     except Exception as e:
@@ -493,15 +505,30 @@ def load_csv_to_db(csv_path, db_path):
         
         # Build the rows first, then insert them all in one executemany call.
         rows_inserted = 0
-        rows_skipped = 0
         to_insert = []
+        # Structured exception list (P2-13): each skipped row records why it was
+        # dropped and the raw values, so the API/UI can show an honest account
+        # instead of a bare count. Capped so a pathological file can't blow up.
+        skipped_details = []
+        skipped_count = 0
+
+        def _record_skip(idx, reason, values):
+            nonlocal skipped_count
+            skipped_count += 1
+            if len(skipped_details) < 100:
+                skipped_details.append({"row": idx, "reason": reason, "values": values})
+
+        # CSV-level malformed rows never made it into the DataFrame.
+        for bad in malformed_lines:
+            _record_skip(None, "Malformed CSV row (wrong number of columns)", bad)
 
         for pos, (_, row) in enumerate(df.iterrows()):
+            raw_values = [str(v) for v in row.values][:8]
             try:
                 # Use the pre-parsed (vectorized) date for this row.
                 txn_date = parsed_dates.iat[pos]
                 if pd.isna(txn_date):
-                    rows_skipped += 1
+                    _record_skip(pos, f"Unparseable date: {str(row[date_col])!r}", raw_values)
                     continue
                 txn_date = txn_date.date()
 
@@ -524,17 +551,17 @@ def load_csv_to_db(csv_path, db_path):
                     amount = normalize_amount(row, 'signed', amount_col)
 
                 if amount is None:
-                    print(f"[CSV Loader] Skipping row {pos}: Invalid amount")
-                    rows_skipped += 1
+                    _record_skip(pos, "Invalid or unrecognized amount", raw_values)
                     continue
 
                 to_insert.append((txn_date, description, amount))
                 rows_inserted += 1
 
             except Exception as e:
-                print(f"[CSV Loader] Skipping row {pos}: {str(e)}")
-                rows_skipped += 1
+                _record_skip(pos, f"{type(e).__name__}: {e}", raw_values)
                 continue
+
+        rows_skipped = skipped_count
 
         # Batch insert every valid row in a single round-trip.
         if to_insert:
@@ -554,7 +581,10 @@ def load_csv_to_db(csv_path, db_path):
             'date_format': date_format_type,
             'description_column': desc_col if desc_col else 'None (using TRANSACTION placeholder)',
             'amount_pattern': pattern_desc,
-            'rows_skipped': rows_skipped
+            'rows_skipped': rows_skipped,
+            # Structured exception list (capped at 100) so consumers can show
+            # exactly which rows were dropped and why (P2-13).
+            'skipped_rows': skipped_details,
         }
         
         return rows_inserted, mapping_info

@@ -41,3 +41,33 @@ def test_balance_only_statement_errors_clearly(load_csv):
             "2024-01-01,A,473292.87\n"
             "2024-01-02,B,451292.87\n"
         )
+
+
+def test_ragged_row_skipped_not_aborted(load_csv):
+    """One ragged (extra-field) row must not abort the whole file; valid rows
+    load and the bad row is reported in the exception list (P1-7 / P2-13)."""
+    n, info, rows = load_csv(
+        "Date,Description,Amount\n"
+        "2024-01-01,COFFEE,-100\n"
+        "2024-01-02,X,Y,-50\n"      # 4 fields where 3 expected
+        "2024-01-03,TEA,-30\n"
+    )
+    assert n == 2
+    assert info["rows_skipped"] == 1
+    assert len(info["skipped_rows"]) == 1
+    assert "Malformed" in info["skipped_rows"][0]["reason"]
+
+
+def test_bad_amount_row_reported_with_reason(load_csv):
+    """A row with an unparseable amount is skipped WITH a reason and its raw
+    values, not silently (P2-13)."""
+    n, info, rows = load_csv(
+        "Date,Description,Amount\n"
+        "2024-01-01,GOOD,-100\n"
+        "2024-01-02,BADAMT,notanumber\n"
+    )
+    assert n == 1
+    assert info["rows_skipped"] == 1
+    detail = info["skipped_rows"][0]
+    assert detail["row"] == 1
+    assert "amount" in detail["reason"].lower()
