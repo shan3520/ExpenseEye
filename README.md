@@ -346,10 +346,18 @@ monthly spend time series, with a moving-average + linear-trend baseline
 fallback when history is sparse (< ~60 daily points or < 6 months). Never
 crashes on sparse data.
 
-**Accuracy (held-out, on the bundled realistic sample):**
-- Monthly rolling one-step-ahead holdout: **MAE ₹3,274 · RMSE ₹3,575 · MAPE 5.21%**
-- Daily MAE/RMSE reported as a secondary metric (per-day MAPE is unreliable on
-  spiky transaction data, so the monthly aggregate is the headline).
+**Accuracy — reported on two datasets, each labelled (these metrics are dataset-dependent):**
+- **Synthetic sample** (`data/sample_statement.csv`): monthly rolling one-step-ahead
+  holdout **MAE ₹3,274 · RMSE ₹3,575 · MAPE 5.21%**. Holt-Winters fits this generator
+  (a linear trend + seasonality) almost by construction, so this characterises the
+  data, not real-world skill.
+- **Real statement** (`bankstatements.csv`, 22 months): **MAE ₹22,527 · RMSE ₹30,561 ·
+  MAPE 36.72%** — the honest real-world figure. (It measured ~142% before the ISO-8601
+  date bug was fixed; correcting the timeline brought it down, and it does not approach
+  the synthetic 5%.)
+- Daily MAE/RMSE is a secondary metric (per-day MAPE is unreliable on spiky transaction
+  data, so the monthly aggregate is the headline). A statement too short to back-test
+  returns `accuracy: null`, and the UI says so explicitly rather than showing a blank.
 
 ### Transaction Categorizer (ML)
 
@@ -357,8 +365,12 @@ crashes on sparse data.
 n-grams → **LogisticRegression**, persisted to `models/category_clf.joblib` and
 loaded once at startup. Low-confidence predictions fall back to keyword rules.
 
-**Accuracy (25% stratified holdout, 9 categories):**
+**Accuracy (25% stratified holdout of the synthetic seed vocabulary, 9 categories):**
 - **Accuracy 93.1% · Macro Precision 93.8% · Macro Recall 93.0% · Macro F1 93.1%**
+- ⚠️ This holdout shares its merchant vocabulary with training, so it largely measures
+  memorisation, not generalisation. On merchant names outside the seed vocabulary the
+  model mostly defers to the keyword fallback; a held-out set of **unseen real merchants**
+  is the proper measure of real-world coverage (tracked as a follow-up — see P1-5).
 
 Retrain anytime: `python scripts/generate_data.py && python scripts/train_categorizer.py`
 

@@ -159,7 +159,7 @@ export function CashFlowForecast({ sessionId }: Props) {
       </div>
 
       {/* accuracy */}
-      {acc && (
+      {acc ? (
         <div className="inset p-4">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-data font-semibold text-txt">Forecast accuracy</h3>
@@ -178,6 +178,13 @@ export function CashFlowForecast({ sessionId }: Props) {
             ))}
           </div>
           <p className="mt-3 text-micro text-txt-faint">{acc.basis}{acc.holdout_months ? ` · ${acc.holdout_months}-month holdout` : ''}</p>
+        </div>
+      ) : (
+        <div className="inset p-4">
+          <p className="text-data leading-relaxed text-txt-muted">
+            Not enough history to back-test accuracy yet — upload a statement spanning
+            more months to see MAE / RMSE / MAPE.
+          </p>
         </div>
       )}
     </div>
