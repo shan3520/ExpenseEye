@@ -113,8 +113,8 @@ def build_statement(months=18):
 
     def add(d, category, amount):
         desc = RNG.choice(MERCHANTS[category])
-        # DD/MM/YYYY: unambiguous day-first so the CSV auto-mapper parses it
-        # correctly (ISO YYYY-MM-DD trips its day/month detection heuristic).
+        # Sample data uses DD/MM/YYYY. The loader also handles ISO YYYY-MM-DD
+        # and MM/DD/YYYY — see core.loader.detect_date_format.
         rows.append([d.strftime("%d/%m/%Y"), desc, round(amount, 2)])
 
     for m in range(months):

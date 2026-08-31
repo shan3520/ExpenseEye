@@ -261,60 +261,47 @@ def find_header_row(csv_path):
 
 def detect_date_format(df, date_col):
     """
-    Auto-detect if dates are in DD/MM/YYYY or MM/DD/YYYY format.
-    Returns True if dayfirst (DD/MM/YYYY), False if monthfirst (MM/DD/YYYY).
+    Detect the date component order used by a column.
+
+    Returns one of:
+      'ISO'        - YYYY-MM-DD (ISO-8601); parsed year-first so day and month
+                     are never transposed
+      'DAYFIRST'   - DD/MM/YYYY
+      'MONTHFIRST' - MM/DD/YYYY
     """
     # Sample first 10 non-null dates
     sample_dates = df[date_col].dropna().head(10)
-    
+
     if len(sample_dates) == 0:
-        return True  # Default to DD/MM/YYYY (international standard)
-    
-    # Try parsing with dayfirst=True and dayfirst=False
-    # Count how many parse successfully with each method
-    dayfirst_success = 0
-    monthfirst_success = 0
-    
+        return 'DAYFIRST'  # international default
+
+    # ISO-8601 (year-first) is unambiguous and MUST be detected before the
+    # day/month heuristic below: an ISO date starts with a 4-digit year, so the
+    # "component > 12" test never fires and pandas(dayfirst=True) would silently
+    # transpose day and month (2024-03-01 read as 3 Jan instead of 1 Mar).
+    iso_re = re.compile(r'^\s*\d{4}-\d{1,2}-\d{1,2}')
+    iso_hits = sum(1 for d in sample_dates if iso_re.match(str(d)))
+    if iso_hits >= max(1, int(0.6 * len(sample_dates))):
+        return 'ISO'
+
+    # Ambiguous slash / dash / dot formats: a component > 12 disambiguates.
     for date_str in sample_dates:
-        # Try dayfirst (DD/MM/YYYY)
-        try:
-            parsed = pd.to_datetime(date_str, dayfirst=True, errors='coerce')
-            if not pd.isna(parsed):
-                dayfirst_success += 1
-        except Exception:
-            pass
-        
-        # Try monthfirst (MM/DD/YYYY)
-        try:
-            parsed = pd.to_datetime(date_str, dayfirst=False, errors='coerce')
-            if not pd.isna(parsed):
-                monthfirst_success += 1
-        except Exception:
-            pass
-    
-    # If both work equally, check for ambiguous dates
-    # Look for dates where day > 12 (can't be month)
-    for date_str in sample_dates:
-        date_str = str(date_str).strip()
-        parts = date_str.replace('-', '/').split('/')
-        
+        parts = re.split(r'[/\-.]', str(date_str).strip())
         if len(parts) >= 3:
             try:
                 first_part = int(parts[0])
                 second_part = int(parts[1])
-                
-                # If first part > 12, it must be day (DD/MM/YYYY)
-                if first_part > 12:
-                    return True
-                
-                # If second part > 12, it must be day (MM/DD/YYYY)
-                if second_part > 12:
-                    return False
-            except Exception:
+            except (ValueError, TypeError):
                 continue
-    
-    # Default to DD/MM/YYYY (international standard used by most countries)
-    return True
+            # If the first component > 12 it must be the day (DD/MM/YYYY).
+            if first_part > 12:
+                return 'DAYFIRST'
+            # If the second component > 12 it must be the day (MM/DD/YYYY).
+            if second_part > 12:
+                return 'MONTHFIRST'
+
+    # Default to day-first (international standard used by most countries).
+    return 'DAYFIRST'
 
 
 def load_csv_to_db(csv_path, db_path):
@@ -357,9 +344,13 @@ def load_csv_to_db(csv_path, db_path):
         df.columns, df=df, exclude=[date_col, *_amount_cols]
     )
     
-    # Auto-detect date format
-    dayfirst = detect_date_format(df, date_col)
-    date_format_type = "DD/MM/YYYY" if dayfirst else "MM/DD/YYYY"
+    # Auto-detect date format (ISO-8601 year-first, day-first, or month-first).
+    date_order = detect_date_format(df, date_col)
+    date_format_type = {
+        'ISO': 'YYYY-MM-DD (ISO-8601)',
+        'MONTHFIRST': 'MM/DD/YYYY',
+        'DAYFIRST': 'DD/MM/YYYY',
+    }[date_order]
     print(f"[CSV Auto-Mapper] Detected date format: {date_format_type}")
     
     pattern = amount_pattern_info[0]
@@ -379,8 +370,14 @@ def load_csv_to_db(csv_path, db_path):
     
     
     # Parse all transaction dates in one vectorized pass instead of calling
-    # pd.to_datetime per row (far cheaper on large statements).
-    parsed_dates = pd.to_datetime(df[date_col], errors='coerce', dayfirst=dayfirst)
+    # pd.to_datetime per row (far cheaper on large statements). ISO-8601 is
+    # parsed year-first (format='ISO8601') so day and month are never swapped.
+    if date_order == 'ISO':
+        parsed_dates = pd.to_datetime(df[date_col], errors='coerce', format='ISO8601')
+    else:
+        parsed_dates = pd.to_datetime(
+            df[date_col], errors='coerce', dayfirst=(date_order == 'DAYFIRST')
+        )
 
     # Connect to SQLite database
     conn = sqlite3.connect(db_path)
@@ -460,6 +457,7 @@ def load_csv_to_db(csv_path, db_path):
         
         mapping_info = {
             'date_column': date_col,
+            'date_format': date_format_type,
             'description_column': desc_col if desc_col else 'None (using TRANSACTION placeholder)',
             'amount_pattern': pattern_desc,
             'rows_skipped': rows_skipped

@@ -19,6 +19,7 @@ test_load.py
 # by any ignore rule and ship with the app so it deploys and is reproducible.
 !data/seed_transactions.csv
 !data/sample_statement.csv
+!data/sample_statement_iso.csv
 
 # Frontend (viewer/)
 node_modules/
