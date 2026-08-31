@@ -18,6 +18,12 @@ _EXPENSEEYE_IMPLEMENTATION = "shan3520-expenseeye-csv-automapper-v1.0-20241219"
 _ORIGINAL_AUTHOR = "Shantanu (shan3520)"
 _ORIGINAL_REPO = "https://github.com/shan3520/expenseeye"
 
+# Recognized debit/credit indicator tokens (uppercased, non-alpha stripped).
+# Shared by the DrCr column content-validator and normalize_amount so they
+# always agree on what counts as a sign indicator.
+_DEBIT_TOKENS = {"DB", "DR", "D", "DEBIT", "WITHDRAWAL", "W", "PURCHASE"}
+_CREDIT_TOKENS = {"CR", "C", "CREDIT", "DEPOSIT", "DEP", "REFUND", "REVERSAL"}
+
 
 def normalize_column_name(col):
     """Normalize column name for matching."""
@@ -89,30 +95,58 @@ def detect_description_column(columns, df=None, exclude=None):
     return None
 
 
-def detect_amount_pattern(columns):
-    """Detect amount representation pattern in CSV."""
+def _looks_like_drcr(series):
+    """
+    True if a majority of a column's non-null values are recognizable
+    debit/credit indicator tokens (DR/CR/DEBIT/CREDIT/PURCHASE/REFUND/...).
+
+    Guards against an unrelated column literally named "Type" (holding values
+    like Purchase/Refund/Online/POS) hijacking the DrCr pattern.
+    """
+    try:
+        sample = list(series.dropna()[:30])
+    except AttributeError:
+        return False
+    if not sample:
+        return False
+    hits = 0
+    for v in sample:
+        tok = re.sub(r'[^A-Z]', '', str(v).upper())
+        if tok in _DEBIT_TOKENS or tok in _CREDIT_TOKENS:
+            hits += 1
+    return hits >= 0.6 * len(sample)
+
+
+def detect_amount_pattern(columns, df=None):
+    """
+    Detect amount representation pattern in CSV.
+
+    When a DataFrame is provided, a candidate DrCr column is accepted only if
+    its VALUES actually look like debit/credit indicators, so a column merely
+    named "Type" cannot hijack the DrCr pattern and reject every row.
+    """
     normalized = {normalize_column_name(col): col for col in columns}
-    
+
     # Pattern A: DrCr + Amount
     drcr_aliases = ['drcr', 'type', 'transactiontype', 'txntype']
     amount_aliases = ['amount', 'amt', 'value', 'transactionamount']
-    
+
     drcr_col = None
     amount_col = None
-    
+
     for alias in drcr_aliases:
         if alias in normalized:
             drcr_col = normalized[alias]
             break
-    
+
     for alias in amount_aliases:
         if alias in normalized:
             amount_col = normalized[alias]
             break
-    
-    if drcr_col and amount_col:
+
+    if drcr_col and amount_col and (df is None or _looks_like_drcr(df[drcr_col])):
         return ('drcr', drcr_col, amount_col)
-    
+
     # Pattern B: Debit + Credit
     debit_aliases = ['debit', 'withdrawal', 'debitamount', 'dr', 'withdrawalamount', 'withdrawalamt']
     credit_aliases = ['credit', 'deposit', 'creditamount', 'cr', 'depositamount', 'depositamt']
@@ -133,27 +167,80 @@ def detect_amount_pattern(columns):
     if debit_col and credit_col:
         return ('debit_credit', debit_col, credit_col)
     
-    # Pattern C: Signed Amount
-    signed_aliases = amount_aliases + ['balance']
+    # Pattern C: Signed Amount. A running Balance is a stock, not a flow, so it
+    # is deliberately NOT treated as a transaction amount (see P1-9 below).
+    signed_aliases = amount_aliases
     for alias in signed_aliases:
         if alias in normalized:
             return ('signed', normalized[alias])
-    
+
+    # Nothing matched. If the only money-like column is a running balance, say
+    # so explicitly rather than silently loading the balance as the amount.
+    if 'balance' in normalized:
+        raise ValueError(
+            "Found a 'Balance' column but no transaction amount column. A running "
+            "balance is not a transaction amount — provide a Debit/Credit, "
+            "DrCr + Amount, or signed Amount column."
+        )
+
     # Show what columns were actually found
     available_cols = ', '.join(columns[:10])
     raise ValueError(f"Could not identify amount columns. Your CSV has: [{available_cols}]. Expected one of: (1) DrCr + Amount, (2) Debit + Credit columns, or (3) signed Amount column.")
+
+
+def _normalize_decimal(s):
+    """
+    Normalize a numeric string's thousands / decimal separators to a plain
+    float literal, or return None if the separator pattern is malformed.
+
+    Handles US ("1,250.50"), European ("1.234,56" / "1 234,56") and plain
+    forms, and rejects nonsense like "1,2,3" instead of concatenating it.
+    """
+    s = re.sub(r'[\s ]', '', s)   # spaces (incl. NBSP) act as thousands sep
+    neg = s.startswith('-')
+    s = s.lstrip('+-')
+    if not s or not re.fullmatch(r'[0-9.,]+', s):
+        return None
+
+    has_comma = ',' in s
+    has_dot = '.' in s
+
+    if has_comma and has_dot:
+        # Whichever separator appears LAST is the decimal point.
+        if s.rfind(',') > s.rfind('.'):
+            s = s.replace('.', '').replace(',', '.')   # European: '.' thousands, ',' decimal
+        else:
+            s = s.replace(',', '')                      # US/Indian: ',' thousands, '.' decimal
+    elif has_comma:
+        parts = s.split(',')
+        if len(parts) == 2 and len(parts[1]) == 2:
+            s = parts[0] + '.' + parts[1]               # decimal comma (1234,56)
+        elif 1 <= len(parts[0]) <= 3 and all(len(p) == 3 for p in parts[1:]):
+            s = ''.join(parts)                          # thousands grouping (1,234,567)
+        else:
+            return None                                  # malformed (1,2,3)
+    elif has_dot:
+        parts = s.split('.')
+        if len(parts) == 2:
+            pass                                         # single dot = decimal point
+        elif 1 <= len(parts[0]) <= 3 and all(len(p) == 3 for p in parts[1:]):
+            s = ''.join(parts)                          # dot thousands (1.234.567)
+        else:
+            return None
+
+    return ('-' + s) if neg else s
 
 
 def coerce_amount(value):
     """
     Parse a possibly messy numeric cell into a float, or None if not numeric.
 
-    Real bank exports format amounts with thousands separators ("28,840.00"),
-    currency symbols ("₹1,200"), trailing CR/DR markers ("49,429.72 CR"), or
-    parentheses for negatives ("(150.00)"). A bare float() call drops every one
-    of those rows, so we clean the value before converting. The sign hint from
-    a trailing DR / CR (or parentheses) is returned, but callers that already
-    know the sign (Debit/Credit or DrCr columns) operate on the magnitude.
+    Handles thousands separators ("28,840.00"), currency symbols and codes
+    ("₹1,200", "INR 500"), trailing CR/DR markers ("49,429.72 CR"), parentheses
+    negatives ("(150.00)"), trailing-minus negatives ("500-") and the European
+    decimal-comma convention ("1.234,56"). Malformed separator patterns
+    ("1,2,3") are rejected rather than silently concatenated. Callers that
+    already know the sign (Debit/Credit or DrCr columns) operate on the magnitude.
     """
     if value is None:
         return None
@@ -175,9 +262,16 @@ def coerce_amount(value):
         if marker.group(1).upper() == 'DR':
             sign = -1.0
         s = s[:marker.start()].strip()
-    # Strip currency symbols, thousands separators and any inner whitespace.
-    s = re.sub(r'[₹$€£,\s]', '', s)
-    if s in ('', '-', '+', '.'):
+    # Leading currency code (INR / USD / EUR / GBP / RS / RS.) then symbols.
+    s = re.sub(r'^(?:INR|USD|EUR|GBP|RS\.?)\s*', '', s, flags=re.IGNORECASE).strip()
+    s = re.sub(r'[₹$€£]', '', s).strip()
+    # Trailing '-' as a negative sign (common in SAP / legacy exports).
+    if s.endswith('-'):
+        sign = -sign
+        s = s[:-1].strip()
+
+    s = _normalize_decimal(s)
+    if s is None or s in ('', '-', '+', '.'):
         return None
     try:
         return sign * float(s)
@@ -197,9 +291,9 @@ def normalize_amount(row, pattern, col1, col2=None):
             if amount_value is None:
                 return None
 
-            if drcr_value in ['DB', 'DR', 'D', 'DEBIT', 'WITHDRAWAL', 'W']:
+            if drcr_value in _DEBIT_TOKENS:
                 return -abs(amount_value)
-            elif drcr_value in ['CR', 'C', 'CREDIT', 'DEPOSIT', 'DEP']:
+            elif drcr_value in _CREDIT_TOKENS:
                 return abs(amount_value)
             else:
                 return None
@@ -338,7 +432,7 @@ def load_csv_to_db(csv_path, db_path):
     # Detect columns. Amount/date columns are detected first so they can be
     # excluded from the content-based description fallback.
     date_col = detect_date_column(df.columns)
-    amount_pattern_info = detect_amount_pattern(df.columns)
+    amount_pattern_info = detect_amount_pattern(df.columns, df=df)
     _amount_cols = [c for c in amount_pattern_info[1:] if c]
     desc_col = detect_description_column(
         df.columns, df=df, exclude=[date_col, *_amount_cols]
