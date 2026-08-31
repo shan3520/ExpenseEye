@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from core.categorizer import _rule_category, _get_model
+from core.subscriptions import detect_subscriptions, normalize_description
 
 # A transaction is flagged when its robust z-score exceeds this threshold.
 _Z_THRESHOLD = 3.5
@@ -56,6 +57,16 @@ def detect_anomalies(db_path):
 
     if df.empty:
         return {"success": False, "error": "No expense transactions to analyze."}
+
+    # Exclude known recurring subscriptions from anomaly candidacy: a predictable
+    # monthly charge is a subscription, not an unexplained outlier. This keeps
+    # the two modules from contradicting each other on the same input (P2-15).
+    sub_keys = {normalize_description(s["description"]) for s in detect_subscriptions(db_path)}
+    if sub_keys:
+        keep = df["description"].fillna("").map(lambda d: normalize_description(d) not in sub_keys)
+        df = df[keep]
+    if df.empty:
+        return {"success": False, "error": "No non-subscription expenses to analyze."}
 
     df["spend"] = df["amount"].abs()
     df["category"] = _category_for(df["description"].fillna("").astype(str))

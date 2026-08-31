@@ -53,7 +53,13 @@ _DEBUG_MODE = os.getenv('DEBUG', '0') == '1'
 _cors_origins = os.getenv('CORS_ORIGINS', '').strip()
 _cors_strict = os.getenv('CORS_STRICT', '0') == '1'
 
-if _cors_origins and _cors_origins != '*':
+# Safe default frontend origin when CORS_ORIGINS is unset (P2-17): prefer a
+# known origin over a wildcard. Override via CORS_ORIGINS in any environment.
+_DEFAULT_ORIGIN = os.getenv('DEFAULT_CORS_ORIGIN', 'https://expenseeye.pages.dev')
+
+if _cors_origins == '*':
+    _allowed_origins = '*'                       # explicit, deliberate wildcard
+elif _cors_origins:
     _allowed_origins = [o.strip() for o in _cors_origins.split(',') if o.strip()]
 elif _cors_strict and not _DEBUG_MODE:
     # Fail closed: refuse to start wide-open when strict mode is requested.
@@ -61,13 +67,14 @@ elif _cors_strict and not _DEBUG_MODE:
         "CORS_STRICT=1 but CORS_ORIGINS is not set. Provide an explicit "
         "allowlist of frontend origin(s), e.g. https://expenseeye.pages.dev"
     )
+elif _DEBUG_MODE:
+    _allowed_origins = '*'                        # convenient for local development
 else:
-    _allowed_origins = '*'
-    if not _DEBUG_MODE:
-        logger.warning(
-            "CORS is open to all origins ('*'). Set CORS_ORIGINS to your "
-            "frontend origin(s) in production, or CORS_STRICT=1 to enforce it."
-        )
+    _allowed_origins = [_DEFAULT_ORIGIN]
+    logger.warning(
+        "CORS_ORIGINS not set; defaulting to %s. Set CORS_ORIGINS to your "
+        "frontend origin(s) to override.", _DEFAULT_ORIGIN,
+    )
 
 # allow_headers must include X-Session-Id so the browser's cross-origin
 # preflight succeeds: the session id travels in that header (not the query
@@ -224,10 +231,12 @@ def _resolve_session_db(session_id):
         }), 400)
     db_path = os.path.join(tempfile.gettempdir(), f"expenseeye_{session_id}.db")
     if not os.path.exists(db_path):
+        # 404: the session genuinely does not exist (expired, reaped, or deleted
+        # via DELETE /session/<id>), as opposed to a malformed request.
         return None, (jsonify({
             "success": False,
             "error": "Session not found or expired"
-        }), 400)
+        }), 404)
     return db_path, None
 
 
@@ -549,6 +558,27 @@ def anomalies():
     except Exception:
         logger.exception("[anomalies] failed")
         return jsonify({"success": False, "error": "Could not run anomaly detection for this session."}), 500
+
+
+@app.route('/session/<session_id>', methods=['DELETE'])
+@rate_limit('compute', 60)
+def delete_session(session_id):
+    """
+    Delete a session's database so its data becomes unreachable (P0-4).
+
+    Idempotent: returns 204 whether or not the session existed. This backs the
+    "delete on exit" promise the UI makes; the TTL reaper is the safety net.
+    """
+    if not is_valid_uuid(session_id):
+        return jsonify({"success": False, "error": "Invalid session_id format"}), 400
+    db_path = os.path.join(tempfile.gettempdir(), f"expenseeye_{session_id}.db")
+    try:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+    except OSError:
+        logger.exception("[session-delete] failed")
+        return jsonify({"success": False, "error": "Could not delete the session."}), 500
+    return ('', 204)
 
 
 if __name__ == '__main__':
