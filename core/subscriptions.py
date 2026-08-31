@@ -1,111 +1,126 @@
+"""
+ExpenseEye subscription detection.
+
+Groups recurring charges by a NORMALIZED merchant description and an amount
+BUCKET (not exact float equality), so real subscriptions whose price drifts
+with GST revisions, plan changes or FX are still detected (P0-3). Cadence is
+judged from the MEDIAN gap with a tolerance band, so a single skipped or
+early-billed month no longer disqualifies the series.
+
+Detection is a pure read: it never writes to the database (P2-16).
+"""
+import re
 import sqlite3
+
+import numpy as np
 import pandas as pd
+
+# A charge belongs to a subscription series if its magnitude is within this
+# fraction (or absolute floor) of the series median — tolerates price drift.
+_AMOUNT_TOL_FRAC = 0.15
+_AMOUNT_TOL_ABS = 50.0
+# Recognized cadences: (label, low_days, high_days).
+_CADENCES = [
+    ("WEEKLY", 6, 8),
+    ("FORTNIGHTLY", 12, 16),
+    ("MONTHLY", 25, 35),
+    ("QUARTERLY", 84, 100),
+]
+# Reject a series whose gaps are more irregular than this (MAD / median gap).
+_MAX_GAP_DISPERSION = 0.4
+
+
+def normalize_description(description):
+    """
+    Normalize a merchant description for grouping: lowercase, drop long digit
+    runs (card / reference / transaction numbers), keep letters, collapse
+    whitespace. "NETFLIX *REF12345" and "Netflix" both become "netflix".
+    """
+    d = str(description).lower()
+    d = re.sub(r"\d{3,}", " ", d)          # ref / card / txn numbers
+    d = re.sub(r"[^a-z& ]+", " ", d)       # keep letters and ampersand
+    d = re.sub(r"\s+", " ", d).strip()
+    return d
+
+
+def _classify_cadence(median_gap):
+    for label, lo, hi in _CADENCES:
+        if lo <= median_gap <= hi:
+            return label
+    return None
 
 
 def detect_subscriptions(db_path="smartspend.db"):
     """
-    Runs subscription detection and persists results into DB.
-    Returns a list of detected subscriptions.
-    
-    Args:
-        db_path: Path to SQLite database file
-        
-    Returns:
-        List of dictionaries containing subscription details:
-        - description: Transaction description
-        - amount: Transaction amount (negative)
-        - frequency: "MONTHLY" or "WEEKLY"
-        - avg_gap: Average days between transactions
-        - occurrences: Number of times the subscription occurred
-    """
-    # Connect to database
-    conn = sqlite3.connect(db_path)
-    
-    # Fetch all transactions excluding UNKNOWN and credits
-    query = '''
-        SELECT txn_date, description, amount
-        FROM transactions
-        WHERE description != 'UNKNOWN'
-        AND amount < 0
-        ORDER BY description, amount, txn_date
-    '''
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    
-    # Vectorize datetime conversion instead of doing it per-group
-    # This prevents redundant parsing overhead inside the loop
-    df['txn_date'] = pd.to_datetime(df['txn_date'])
+    Detect recurring subscriptions in a session database.
 
-    # Group by description and amount
-    grouped = df.groupby(['description', 'amount'])
-    
-    # Store detected subscriptions
-    subscriptions = []
-    
-    for (description, amount), group in grouped:
-        # Need at least 3 occurrences
-        if len(group) < 3:
-            continue
-        
-        # Sort dates chronologically
-        dates = group['txn_date'].sort_values()
-        
-        # Vectorize gap calculation using pandas .diff()
-        # This replaces an O(n) Python loop with a highly optimized C implementation
-        gaps = dates.diff().dt.days.dropna().tolist()
-        
-        # Ignore highly irregular patterns
-        if max(gaps) - min(gaps) > 5:
-            continue
-        
-        # Calculate average gap
-        avg_gap = round(sum(gaps) / len(gaps), 1)
-        
-        # Classify frequency
-        frequency = None
-        if 25 <= avg_gap <= 35:
-            frequency = "MONTHLY"
-        elif 6 <= avg_gap <= 8:
-            frequency = "WEEKLY"
-        
-        # Only keep if we detected a frequency
-        if frequency:
-            subscriptions.append({
-                'description': description,
-                'amount': amount,
-                'frequency': frequency,
-                'avg_gap': avg_gap,
-                'occurrences': len(group)
-            })
-    
-    # Persist subscriptions to database
+    Returns a list of dicts, each with:
+      - description : a representative raw description
+      - amount      : median charge (negative, matching the stored sign)
+      - amount_min / amount_max : observed range (negative) so a price change
+                                  is visible
+      - frequency   : WEEKLY | FORTNIGHTLY | MONTHLY | QUARTERLY
+      - avg_gap     : median days between charges
+      - occurrences : number of charges in the series
+    """
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Create subscriptions table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS subscriptions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            description TEXT,
-            amount REAL,
-            frequency TEXT,
-            avg_gap REAL,
-            occurrences INTEGER
+    try:
+        df = pd.read_sql_query(
+            "SELECT txn_date, description, amount FROM transactions "
+            "WHERE description != 'UNKNOWN' AND amount < 0 "
+            "ORDER BY txn_date",
+            conn,
         )
-    ''')
-    
-    # Clear existing data
-    cursor.execute('DELETE FROM subscriptions')
-    
-    # Insert detected subscriptions
-    for sub in subscriptions:
-        cursor.execute('''
-            INSERT INTO subscriptions (description, amount, frequency, avg_gap, occurrences)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (sub['description'], sub['amount'], sub['frequency'], sub['avg_gap'], sub['occurrences']))
-    
-    # Commit transaction
-    conn.commit()
-    conn.close()
-    
+    finally:
+        conn.close()
+
+    if df.empty:
+        return []
+
+    df["txn_date"] = pd.to_datetime(df["txn_date"])
+    df["norm"] = df["description"].map(normalize_description)
+    df["mag"] = df["amount"].abs()
+
+    subscriptions = []
+
+    for norm, group in df.groupby("norm"):
+        if not norm or len(group) < 3:
+            continue
+
+        # Keep the dominant amount cluster (within tolerance of the median),
+        # so an occasional off-price charge doesn't break the series but a
+        # genuinely different amount isn't merged in.
+        median_amt = float(group["mag"].median())
+        tol = max(_AMOUNT_TOL_FRAC * median_amt, _AMOUNT_TOL_ABS)
+        series = group[(group["mag"] - median_amt).abs() <= tol].sort_values("txn_date")
+        if len(series) < 3:
+            continue
+
+        gaps = series["txn_date"].diff().dt.days.dropna().to_numpy()
+        if len(gaps) == 0:
+            continue
+        median_gap = float(np.median(gaps))
+        mad = float(np.median(np.abs(gaps - median_gap)))
+
+        frequency = _classify_cadence(median_gap)
+        if frequency is None:
+            continue
+        # Reject wildly irregular series (a one-off cluster of similar charges).
+        if median_gap > 0 and mad > _MAX_GAP_DISPERSION * median_gap:
+            continue
+
+        rep = series["description"].mode()
+        rep_desc = rep.iloc[0] if len(rep) else series["description"].iloc[0]
+        mags = series["mag"]
+        subscriptions.append({
+            "description": rep_desc,
+            "amount": -round(float(mags.median()), 2),
+            "amount_min": -round(float(mags.max()), 2),
+            "amount_max": -round(float(mags.min()), 2),
+            "frequency": frequency,
+            "avg_gap": round(median_gap, 1),
+            "occurrences": int(len(series)),
+        })
+
+    subscriptions.sort(key=lambda s: s["occurrences"], reverse=True)
     return subscriptions
