@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Lock } from '@phosphor-icons/react';
-import { cn } from '@/lib/utils';
+import { cn, shortId } from '@/lib/utils';
 
 interface SessionTapeProps {
   sessionId: string;
   /** Nav label of the module currently in view (from scroll-spy). */
   activeLabel: string;
   moduleCount: number;
-}
-
-/** Short, stable, human-scannable handle for a session id. */
-export function shortId(id: string): string {
-  const clean = id.replace(/[^a-z0-9]/gi, '');
-  return (clean.slice(0, 8) || 'SESSION').toUpperCase();
 }
 
 function formatUptime(totalSeconds: number): string {

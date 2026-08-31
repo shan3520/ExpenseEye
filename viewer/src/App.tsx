@@ -19,7 +19,7 @@ import {
 } from '@phosphor-icons/react';
 import { FileUpload } from '@/components/FileUpload';
 import { warmUpBackend, deleteSession } from '@/lib/api';
-import { SessionTape, shortId } from '@/components/SessionTape';
+import { SessionTape } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
 import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
 import { CashFlowForecast } from '@/components/CashFlowForecast';
@@ -31,7 +31,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useSmoothScroll } from '@/lib/useSmoothScroll';
 import { useMagneticTilt } from '@/lib/useMagneticTilt';
 import { gsap, ScrollTrigger, STANDARD_EASE } from '@/lib/motion';
-import { cn } from '@/lib/utils';
+import { cn, shortId } from '@/lib/utils';
 
 /** GitHub mark — inlined as a brand glyph so it stays exact across themes. */
 function GithubMark({ className = 'w-5 h-5' }: { className?: string }) {
@@ -470,7 +470,7 @@ function ProcessingTerminal({ onComplete }: { onComplete: () => void }) {
   // Hold the latest callback in a ref so the timer effect runs once on mount and
   // never restarts the sequence if the parent re-renders.
   const done = useRef(onComplete);
-  done.current = onComplete;
+  useEffect(() => { done.current = onComplete; }, [onComplete]);
 
   useEffect(() => {
     if (reduce) {

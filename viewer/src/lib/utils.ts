@@ -19,3 +19,9 @@ export function inr(n: number, decimals = 0) {
     })
   )
 }
+
+/** Short, stable, human-scannable handle for a session id. */
+export function shortId(id: string): string {
+  const clean = id.replace(/[^a-z0-9]/gi, '')
+  return (clean.slice(0, 8) || 'SESSION').toUpperCase()
+}
