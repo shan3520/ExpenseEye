@@ -351,10 +351,10 @@ crashes on sparse data.
   holdout **MAE ₹3,274 · RMSE ₹3,575 · MAPE 5.21%**. Holt-Winters fits this generator
   (a linear trend + seasonality) almost by construction, so this characterises the
   data, not real-world skill.
-- **Real statement** (`bankstatements.csv`, 22 months): **MAE ₹22,527 · RMSE ₹30,561 ·
-  MAPE 36.72%** — the honest real-world figure. (It measured ~142% before the ISO-8601
-  date bug was fixed; correcting the timeline brought it down, and it does not approach
-  the synthetic 5%.)
+- **Real statement** (a 22-month bank export, removed from the repo for privacy — see
+  P1-11): **MAE ₹22,527 · RMSE ₹30,561 · MAPE 36.72%** — the honest real-world figure.
+  (It measured ~142% before the ISO-8601 date bug was fixed; correcting the timeline
+  brought it down, and it does not approach the synthetic 5%.)
 - Daily MAE/RMSE is a secondary metric (per-day MAPE is unreliable on spiky transaction
   data, so the monthly aggregate is the headline). A statement too short to back-test
   returns `accuracy: null`, and the UI says so explicitly rather than showing a blank.
