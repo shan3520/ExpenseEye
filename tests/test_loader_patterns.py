@@ -38,8 +38,8 @@ def test_balance_only_statement_errors_clearly(load_csv):
     with pytest.raises(ValueError, match="[Bb]alance"):
         load_csv(
             "Date,Description,Balance\n"
-            "2024-01-01,A,473292.87\n"
-            "2024-01-02,B,451292.87\n"
+            "2024-01-01,A,125000.00\n"
+            "2024-01-02,B,103000.00\n"
         )
 
 
