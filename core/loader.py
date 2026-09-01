@@ -7,6 +7,8 @@ License: MIT
 """
 
 import sqlite3
+from datetime import date
+
 import pandas as pd
 import re
 
@@ -17,6 +19,12 @@ import re
 _EXPENSEEYE_IMPLEMENTATION = "shan3520-expenseeye-csv-automapper-v1.0-20241219"
 _ORIGINAL_AUTHOR = "Shantanu (shan3520)"
 _ORIGINAL_REPO = "https://github.com/shan3520/expenseeye"
+
+# Plausible transaction-date window. Anything outside is a typo or a corrupt
+# row, not real history: a mistyped year (1900 / 2099 / 9999) would otherwise
+# stretch every downstream time series across centuries.
+_MIN_PLAUSIBLE_YEAR = 1990
+_MAX_YEARS_AHEAD = 2
 
 # Recognized debit/credit indicator tokens (uppercased, non-alpha stripped).
 # Shared by the DrCr column content-validator and normalize_amount so they
@@ -319,6 +327,34 @@ def normalize_amount(row, pattern, col1, col2=None):
     return None
 
 
+def sniff_delimiter(csv_path, default=','):
+    """
+    Detect the column delimiter from the first non-empty lines.
+
+    Indian/US exports use commas, but European bank exports commonly use
+    semicolons (and some use tabs or pipes). Guessing wrong makes the whole file
+    look like one column, which then fails column detection entirely.
+    """
+    candidates = [',', ';', '	', '|']
+    try:
+        with open(csv_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+            lines = [ln for ln in (f.readline() for _ in range(10)) if ln and ln.strip()]
+    except OSError:
+        return default
+    if not lines:
+        return default
+    best, best_score = default, 0
+    for cand in candidates:
+        counts = [ln.count(cand) for ln in lines]
+        if not counts or max(counts) == 0:
+            continue
+        consistent = sum(1 for c in counts if c == counts[0] and c > 0)
+        score = counts[0] * consistent
+        if score > best_score:
+            best, best_score = cand, score
+    return best
+
+
 def find_header_row(csv_path):
     """
     Find the actual header row in a CSV that may have metadata rows at the top.
@@ -327,21 +363,37 @@ def find_header_row(csv_path):
     # Try reading first 20 rows to find headers
     try:
         # Read without assuming headers
-        df_preview = pd.read_csv(csv_path, nrows=20, header=None)
+        df_preview = pd.read_csv(csv_path, nrows=20, header=None,
+                                 sep=sniff_delimiter(csv_path), engine='python')
         
         # Look for rows that contain common column keywords
         date_keywords = ['date', 'transaction', 'txn', 'posting', 'value']
         desc_keywords = ['description', 'name', 'narration', 'merchant', 'details', 'particulars']
         amount_keywords = ['amount', 'debit', 'credit', 'balance', 'value', 'withdrawal', 'deposit']
         
+        def _cell_matches(cells, keywords):
+            """Match a keyword against a whole cell token, not any substring of
+            the joined row. Substring matching let the generic keyword "value"
+            match a DATA cell like "value1", so a data row was picked as the
+            header and the error then quoted a value as a column name."""
+            for cell in cells:
+                tokens = re.split(r'[^a-z0-9]+', cell)
+                for kw in keywords:
+                    if ' ' in kw:
+                        if kw in cell:
+                            return True
+                    elif kw in tokens:
+                        return True
+            return False
+
         for idx, row in df_preview.iterrows():
             # Convert row to lowercase strings
             row_str = [str(val).lower().strip() for val in row if pd.notna(val)]
             
             # Check if this row contains typical column headers
-            has_date = any(keyword in ' '.join(row_str) for keyword in date_keywords)
-            has_desc = any(keyword in ' '.join(row_str) for keyword in desc_keywords)
-            has_amount = any(keyword in ' '.join(row_str) for keyword in amount_keywords)
+            has_date = _cell_matches(row_str, date_keywords)
+            has_desc = _cell_matches(row_str, desc_keywords)
+            has_amount = _cell_matches(row_str, amount_keywords)
             
             # If we found at least 2 of the 3 required column types, this is likely the header
             if sum([has_date, has_desc, has_amount]) >= 2:
@@ -430,7 +482,7 @@ def load_csv_to_db(csv_path, db_path):
 
     try:
         df = pd.read_csv(
-            csv_path, header=header_row,
+            csv_path, header=header_row, sep=sniff_delimiter(csv_path),
             engine='python', on_bad_lines=_collect_bad_line,
         )
     except FileNotFoundError:
@@ -504,6 +556,7 @@ def load_csv_to_db(csv_path, db_path):
         cursor.execute('DELETE FROM transactions')
         
         # Build the rows first, then insert them all in one executemany call.
+        _max_plausible_year = date.today().year + _MAX_YEARS_AHEAD
         rows_inserted = 0
         to_insert = []
         # Structured exception list (P2-13): each skipped row records why it was
@@ -531,6 +584,14 @@ def load_csv_to_db(csv_path, db_path):
                     _record_skip(pos, f"Unparseable date: {str(row[date_col])!r}", raw_values)
                     continue
                 txn_date = txn_date.date()
+                if not (_MIN_PLAUSIBLE_YEAR <= txn_date.year <= _max_plausible_year):
+                    _record_skip(
+                        pos,
+                        f"Date {txn_date} outside the plausible range "
+                        f"{_MIN_PLAUSIBLE_YEAR}-{_max_plausible_year}",
+                        raw_values,
+                    )
+                    continue
 
                 # Get description (use placeholder if column doesn't exist)
                 if desc_col:

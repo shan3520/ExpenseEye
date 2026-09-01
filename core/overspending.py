@@ -1,6 +1,12 @@
 import sqlite3
 import pandas as pd
 
+# A month must be at least this far above the trailing baseline, AND this many
+# standard deviations out, before it is called overspending. Both are
+# conventional thresholds, not values tuned to produce a pleasing flag rate.
+_MIN_PCT_DEVIATION = 0.20   # 20% above baseline
+_SIGMA_THRESHOLD = 2.0      # 2 sigma
+
 
 def detect_overspending(db_path="smartspend.db"):
     """
@@ -68,15 +74,24 @@ def detect_overspending(db_path="smartspend.db"):
         if pd.isna(std_spending) or std_spending == 0:
             std_spending = avg_spending * 0.1
         
-        # Calculate overspending thresholds
-        threshold_120_percent = avg_spending * 1.2
-        threshold_std = avg_spending + std_spending
-        
+        # A month is only "overspending" if it clears BOTH bars: a materially
+        # larger spend (>= 20% above the trailing baseline) AND a genuine
+        # statistical outlier (>= 2 standard deviations).
+        #
+        # The previous rule ORed a 20% test with a 1-sigma test. On low-variance
+        # data 1 sigma is by far the lower bar, so it fired first every time and
+        # the 20% rule never triggered at all -- flagging 53% of months, some as
+        # little as 9.7% above baseline. A detector that fires on half its input
+        # carries no information.
+        threshold_pct = avg_spending * (1 + _MIN_PCT_DEVIATION)
+        threshold_std = avg_spending + _SIGMA_THRESHOLD * std_spending
+        threshold = max(threshold_pct, threshold_std)
+
         # Calculate percentage deviation from average
         pct_deviation = ((spending - avg_spending) / avg_spending) * 100
-        
-        # Determine if overspending
-        is_overspending = (spending > threshold_120_percent) or (spending > threshold_std)
+        z_score = (spending - avg_spending) / std_spending if std_spending else 0.0
+
+        is_overspending = spending > threshold
         status = "OVERSPENDING" if is_overspending else "NORMAL"
         
         # Build result dictionary
@@ -86,6 +101,7 @@ def detect_overspending(db_path="smartspend.db"):
             'avg_spending': avg_spending,
             'std_spending': std_spending,
             'pct_deviation': pct_deviation,
+            'z_score': round(z_score, 2),
             'status': status
         }
         

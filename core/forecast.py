@@ -42,6 +42,15 @@ _MIN_MONTHS = 6
 _DAILY_HORIZON = 30   # forecast the next 30 days
 _DAILY_HOLDOUT = 30   # hold out the most recent 30 days for accuracy
 
+# Hard bounds on the analysis window and the serialized response.
+# A statement carrying a mistyped year (1900, 2099) would otherwise build a
+# continuous daily index spanning centuries -- 213k points and a ~7.7MB payload
+# from a 3-row file -- which exhausts memory on a small instance. Old history is
+# also worthless for a 30-day forecast, so the window is capped from the most
+# recent transaction backwards.
+_MAX_ANALYSIS_DAYS = 1095        # 3 years of history is ample for a 30-day forecast
+_MAX_DAILY_POINTS_RETURNED = 400 # cap the serialized daily history
+
 
 # --------------------------------------------------------------------------- #
 # Data loading / aggregation
@@ -206,6 +215,15 @@ def forecast_cashflow(db_path="expenseeye.db"):
         if df.empty:
             return {"success": False, "error": "No expense transactions found to forecast."}
 
+        # Bound the analysis window to the most recent _MAX_ANALYSIS_DAYS so a
+        # stray out-of-range date cannot blow up the series (see constants).
+        full_span_days = int((df["txn_date"].max() - df["txn_date"].min()).days) + 1
+        window_start = df["txn_date"].max() - pd.Timedelta(days=_MAX_ANALYSIS_DAYS)
+        df = df[df["txn_date"] >= window_start]
+        history_truncated = full_span_days > _MAX_ANALYSIS_DAYS
+        if df.empty:
+            return {"success": False, "error": "No expense transactions found to forecast."}
+
         daily = _daily_series(df)
         monthly = _monthly_series(df)
         n_days = int(len(daily))
@@ -271,10 +289,14 @@ def forecast_cashflow(db_path="expenseeye.db"):
             "method": method,
             "history_days": n_days,
             "history_months": n_months,
+            "history_truncated": history_truncated,
             "daily": {
+                # Capped: the UI charts the monthly series, and an uncapped daily
+                # array is the payload-amplification vector described above.
+                "history_points_returned": int(min(len(daily), _MAX_DAILY_POINTS_RETURNED)),
                 "history": [
                     {"date": d.strftime("%Y-%m-%d"), "spend": round(float(v), 2)}
-                    for d, v in daily.items()
+                    for d, v in daily.tail(_MAX_DAILY_POINTS_RETURNED).items()
                 ],
                 "forecast": [
                     {"date": d.strftime("%Y-%m-%d"), "spend": round(float(v), 2)}

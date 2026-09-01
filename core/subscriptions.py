@@ -19,15 +19,22 @@ import pandas as pd
 # fraction (or absolute floor) of the series median — tolerates price drift.
 _AMOUNT_TOL_FRAC = 0.15
 _AMOUNT_TOL_ABS = 50.0
-# Recognized cadences: (label, low_days, high_days).
+# Recognized cadences: (label, low_days, high_days, min_occurrences).
+# Longer cadences demand more evidence: three points 90 days apart is just as
+# easily three unrelated shopping trips, so QUARTERLY needs a full year.
 _CADENCES = [
-    ("WEEKLY", 6, 8),
-    ("FORTNIGHTLY", 12, 16),
-    ("MONTHLY", 25, 35),
-    ("QUARTERLY", 84, 100),
+    ("WEEKLY", 6, 8, 4),
+    ("FORTNIGHTLY", 12, 16, 4),
+    ("MONTHLY", 25, 35, 3),
+    ("QUARTERLY", 84, 100, 4),
 ]
 # Reject a series whose gaps are more irregular than this (MAD / median gap).
 _MAX_GAP_DISPERSION = 0.4
+# ...and an ABSOLUTE cap as well. A proportional guard alone is far too lenient
+# on long cadences: 40% of a 90-day gap allows +-36 days of drift, which lets
+# irregular repeat purchases at one merchant pass as a "quarterly subscription".
+# A real subscription bills on roughly the same date each cycle.
+_MAX_GAP_MAD_DAYS = 7
 
 
 def normalize_description(description):
@@ -43,10 +50,12 @@ def normalize_description(description):
     return d
 
 
-def _classify_cadence(median_gap):
-    for label, lo, hi in _CADENCES:
+def _classify_cadence(median_gap, occurrences):
+    """Return the cadence label if the gap fits a band AND there is enough
+    evidence for that band, else None."""
+    for label, lo, hi, min_occ in _CADENCES:
         if lo <= median_gap <= hi:
-            return label
+            return label if occurrences >= min_occ else None
     return None
 
 
@@ -102,11 +111,13 @@ def detect_subscriptions(db_path="smartspend.db"):
         median_gap = float(np.median(gaps))
         mad = float(np.median(np.abs(gaps - median_gap)))
 
-        frequency = _classify_cadence(median_gap)
+        frequency = _classify_cadence(median_gap, len(series))
         if frequency is None:
             continue
-        # Reject wildly irregular series (a one-off cluster of similar charges).
-        if median_gap > 0 and mad > _MAX_GAP_DISPERSION * median_gap:
+        # Reject irregular series (a cluster of similar charges that merely
+        # happen to be spaced like a subscription). Both a proportional and an
+        # absolute dispersion bound must hold.
+        if median_gap > 0 and mad > min(_MAX_GAP_DISPERSION * median_gap, _MAX_GAP_MAD_DAYS):
             continue
 
         rep = series["description"].mode()

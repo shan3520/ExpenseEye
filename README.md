@@ -23,7 +23,7 @@ ExpenseEye is a privacy-conscious financial analytics platform that helps you un
 
 **Key Features:**
 - 🔒 **Privacy-conscious**: parsed by ExpenseEye's own API (self-hostable), session-scoped and auto-deleted — never sold or shared with data brokers
-- 📊 **Smart CSV Auto-Mapper**: handles common real-world layouts — ISO / DD-MM / MM-DD dates, DrCr+Amount, Debit/Credit and signed-amount columns, thousands separators, currency symbols and codes, and CR/DR markers
+- 📊 **Smart CSV Auto-Mapper**: handles common real-world layouts — comma / semicolon / tab / pipe delimiters, ISO / DD-MM / MM-DD dates, DrCr+Amount, Debit/Credit and signed-amount columns, thousands separators (incl. European decimal commas), currency symbols and codes, and CR/DR markers. Ragged rows and implausible dates are skipped and reported, never silently dropped.
 - 💳 **Subscription Detection**: Identifies recurring payments with confidence scores
 - 📈 **Overspending Analysis**: Statistical detection of unusual spending months
 - 🔮 **Cash-Flow Forecast (ML)**: Holt-Winters time-series forecast of the next 30 days / next month, with MAE/RMSE/MAPE accuracy reporting
@@ -257,6 +257,13 @@ baseline fallback for sparse history. Reports holdout accuracy.
   "monthly": { "history": [{ "month": "2023-01", "spend": 47000.0 }], "forecast": [{ "month": "2024-07", "spend": 66216.41 }] }
 }
 ```
+
+#### `GET /forecast?session_id=<uuid>`
+
+Note: the analysis window is capped at the most recent 3 years and the returned
+daily series at 400 points (`history_truncated` reports when this applies). A
+statement carrying a mistyped year would otherwise build a continuous daily index
+spanning centuries — 213k points and a ~7.7 MB response from a 3-row file.
 
 #### `GET /reconcile`  (session id via `X-Session-Id`)
 

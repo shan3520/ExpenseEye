@@ -74,7 +74,11 @@ export function OverspendingAnalysis({ sessionId }: OverspendingAnalysisProps) {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data tabular-nums text-txt">{inr(month.spending)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data tabular-nums text-txt-muted">{inr(month.avg_spending)}</td>
-                  <td className={cn('px-4 py-3 whitespace-nowrap text-right font-mono text-data font-medium tabular-nums', month.pct_deviation > 0 ? 'text-danger' : 'text-success')}>
+                  {/* Colour follows the STATUS, not the sign: a month 0.4% above
+                      baseline is not a warning, and painting it red while badging
+                      it "Normal" sends two contradictory signals. */}
+                  <td className={cn('px-4 py-3 whitespace-nowrap text-right font-mono text-data font-medium tabular-nums',
+                    isOverspending ? 'text-danger' : month.pct_deviation < 0 ? 'text-success' : 'text-txt-muted')}>
                     {month.pct_deviation > 0 ? '+' : ''}{month.pct_deviation.toFixed(1)}%
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-data tabular-nums text-txt-muted">{month.excess > 0 ? inr(month.excess) : '—'}</td>

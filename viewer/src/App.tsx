@@ -128,7 +128,7 @@ const MODULES: ModuleDef[] = [
     id: 'overspending',
     nav: 'Overspending',
     title: 'Overspending Analysis',
-    desc: 'Months that ran hot against your trailing three-month baseline.',
+    desc: 'Months that ran hot against the baseline of every prior month.',
     icon: ChartBar,
     span: 'lg:col-span-5',
     render: (s) => <OverspendingAnalysis sessionId={s} />,
