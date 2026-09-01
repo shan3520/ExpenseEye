@@ -165,7 +165,9 @@ export function CashFlowForecast({ sessionId }: Props) {
             <h3 className="text-data font-semibold text-txt">Forecast accuracy</h3>
             <span className="font-mono text-micro text-txt-faint">back-test</span>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          {/* Three currency figures cannot fit three columns at 375px -- MAE and
+              RMSE collided with no gap. Stack them below sm and go 3-up above. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             {[
               ['MAPE', acc.mape != null ? acc.mape.toFixed(1) + '%' : '—'],
               ['MAE', fmt(acc.mae)],
