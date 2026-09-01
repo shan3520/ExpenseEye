@@ -330,30 +330,45 @@ Health check endpoint.
 ### Subscription Detection
 
 **Algorithm:**
-1. Group transactions by description and amount
-2. Require minimum 3 occurrences
-3. Calculate day gaps between consecutive transactions
-4. Classify as MONTHLY (25-35 days) or WEEKLY (5-9 days)
-5. Require consistency: std_dev < 20% of average gap
+1. Group by a NORMALIZED description (card/reference digits stripped) and an
+   amount BUCKET — within 15% or ₹50 of the group median — so a subscription
+   whose price drifts with a GST revision or a plan change stays one series
+2. Require minimum 3 occurrences in the amount band
+3. Reject a series that is a lucky slice of a variable-spend merchant: it must
+   either be most of what that merchant ever charged (≥50% coverage) **or** be
+   effectively fixed-price (amount MAD ≤ 1% or ₹5). Either bar alone is unsafe —
+   coverage rejects a real Prime subscription buried in Amazon orders, and
+   fixed-price rejects a real subscription after a price rise
+4. Take day gaps between consecutive charges; cadence comes from the MEDIAN gap,
+   so one skipped or early-billed month does not disqualify the series
+5. Classify as WEEKLY (6–8 days), FORTNIGHTLY (12–16), MONTHLY (25–35) or
+   QUARTERLY (84–100). Longer cadences demand more evidence: QUARTERLY needs 4
+   occurrences (a full year), MONTHLY needs 3
+6. Require regularity on BOTH a proportional and an absolute bound — gap MAD ≤
+   min(40% of the median gap, 7 days). The proportional bound alone allows ±36
+   days of drift on a quarterly series, which lets irregular repeat purchases
+   pass as a subscription
 
-**Confidence Score:**
-- Based on consistency of timing
-- Higher confidence = more regular payments
+Detection is a pure read — it never writes to the database.
 
 ### Overspending Detection
 
 **Algorithm:**
 1. Calculate monthly spending totals
-2. For each month (after 3-month baseline):
-   - Calculate average of previous months
-   - Calculate standard deviation
-   - Flag if spending > 120% of average OR > avg + std_dev
-3. Report percentage deviation from baseline
+2. For each month (after a 3-month baseline):
+   - Calculate the average and standard deviation of **every prior month**
+   - Flag if spending > 120% of average **OR** > avg + 2σ
+3. Report percentage deviation and the z-score
+
+The two arms catch different failures: the percentage arm catches a steady
+drift upward that never breaks 2σ on noisy data, and the sigma arm catches a
+genuine spike on a month whose baseline is unusually low. Requiring both
+conditions together missed each of those cases.
 
 **Statistical Approach:**
-- No data leakage: Only uses historical data
-- Handles low variance with 10% minimum std_dev
-- Skips first 3 months (insufficient history)
+- No data leakage: only uses months strictly before the one being judged
+- Handles zero/undefined variance with a 10% floor on std_dev
+- Skips the first 3 months (insufficient history)
 
 ### Cash-Flow Forecast (ML)
 

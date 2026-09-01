@@ -35,6 +35,19 @@ _MAX_GAP_DISPERSION = 0.4
 # irregular repeat purchases at one merchant pass as a "quarterly subscription".
 # A real subscription bills on roughly the same date each cycle.
 _MAX_GAP_MAD_DAYS = 7
+# A merchant with genuinely variable spend can still yield a lucky slice of
+# similar-sized charges spaced like a subscription (10 of 36 random food
+# deliveries, ~14 days apart, all near the median). Such a slice must clear ONE
+# of two bars to count as a series:
+#   * COVERAGE - the slice is most of what this merchant ever charged, or
+#   * FIXED PRICE - the charges are all but identical, which is what a real
+#     subscription buried in one-off spend at the same merchant looks like
+#     (Prime among Amazon orders).
+# Either alone is unsafe: coverage rejects that Prime case, and a fixed-price
+# test alone rejects a real subscription after a mid-year price rise.
+_MIN_MERCHANT_COVERAGE = 0.5
+_FIXED_AMOUNT_FRAC = 0.01
+_FIXED_AMOUNT_ABS = 5.0
 
 
 def normalize_description(description):
@@ -103,6 +116,14 @@ def detect_subscriptions(db_path="smartspend.db"):
         tol = max(_AMOUNT_TOL_FRAC * median_amt, _AMOUNT_TOL_ABS)
         series = group[(group["mag"] - median_amt).abs() <= tol].sort_values("txn_date")
         if len(series) < 3:
+            continue
+
+        # Reject a lucky slice of a variable-spend merchant (see the constants
+        # above): it must either dominate the merchant, or be fixed-price.
+        coverage = len(series) / len(group)
+        amt_mad = float(np.median(np.abs(series["mag"] - series["mag"].median())))
+        fixed_price = amt_mad <= max(_FIXED_AMOUNT_FRAC * median_amt, _FIXED_AMOUNT_ABS)
+        if coverage < _MIN_MERCHANT_COVERAGE and not fixed_price:
             continue
 
         gaps = series["txn_date"].diff().dt.days.dropna().to_numpy()

@@ -19,7 +19,7 @@ import sqlite3
 import numpy as np
 import pandas as pd
 
-from core.categorizer import _rule_category, _get_model
+from core.categorizer import predict_categories
 from core.subscriptions import detect_subscriptions, normalize_description
 
 # A transaction is flagged when its robust z-score exceeds this threshold.
@@ -31,11 +31,13 @@ _MAD_SCALE = 1.4826
 
 
 def _category_for(descriptions):
-    """Categorize descriptions with the ML model if present, else rules."""
-    model = _get_model()
-    if model is not None:
-        return [str(c) for c in model.predict(list(descriptions))]
-    return [_rule_category(d) for d in descriptions]
+    """Categorize descriptions exactly as the categorizer module does.
+
+    Shares one implementation so the two never disagree about the same
+    transaction, and so the per-category z-score baseline below is the same
+    category the user is shown.
+    """
+    return [cat for cat, _conf, _src in predict_categories(list(descriptions))]
 
 
 def detect_anomalies(db_path):

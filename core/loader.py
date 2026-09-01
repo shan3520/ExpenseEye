@@ -6,6 +6,7 @@ Original Repository: https://github.com/shan3520/expenseeye
 License: MIT
 """
 
+import csv
 import sqlite3
 from datetime import date
 
@@ -34,21 +35,53 @@ _CREDIT_TOKENS = {"CR", "C", "CREDIT", "DEPOSIT", "DEP", "REFUND", "REVERSAL"}
 
 
 def normalize_column_name(col):
-    """Normalize column name for matching."""
+    """Normalize column name for matching.
+
+    Every non-alphanumeric character is dropped, not just separators. Indian
+    bank exports abbreviate with a trailing period -- "Withdrawal Amt.",
+    "Chq./Ref.No." -- and keeping the period meant "withdrawalamt." never
+    matched the "withdrawalamt" alias written for that very column.
+    """
     col = str(col).lower().strip()
-    col = re.sub(r'[_\s\-/]+', '', col)
+    col = re.sub(r'[^a-z0-9]+', '', col)
     return col
+
+
+# A currency qualifier tacked onto a money column is noise for alias matching:
+# "Amount (INR)" and "Amount in USD" name the same thing as "Amount". Kept as an
+# explicit allow-list rather than a loose prefix match, so a column like
+# "Amount Outstanding" is still NOT treated as a transaction amount.
+_ALIAS_NOISE_SUFFIXES = (
+    '', 'inr', 'usd', 'eur', 'gbp', 'rs', 'rupees',
+    'ininr', 'inusd', 'ineur', 'ingbp', 'inrs',
+)
+
+
+def _match_alias(normalized, aliases):
+    """Return the original column for the first alias that matches.
+
+    Exact match wins; failing that an alias followed only by a currency
+    qualifier matches, so "Amount (INR)" resolves to the "amount" alias.
+    """
+    for alias in aliases:
+        if alias in normalized:
+            return normalized[alias]
+    for alias in aliases:
+        for norm, original in normalized.items():
+            if norm.startswith(alias) and norm[len(alias):] in _ALIAS_NOISE_SUFFIXES:
+                return original
+    return None
 
 
 def detect_date_column(columns):
     """Detect date column from CSV headers."""
     aliases = ['date', 'transactiondate', 'txndate', 'postingdate', 'valuedate']
     normalized = {normalize_column_name(col): col for col in columns}
-    
-    for alias in aliases:
-        if alias in normalized:
-            return normalized[alias]
-    
+
+    match = _match_alias(normalized, aliases)
+    if match is not None:
+        return match
+
     # Show what columns were actually found
     available_cols = ', '.join(columns[:10])  # Show first 10 columns
     raise ValueError(f"Could not identify date column. Your CSV has: [{available_cols}]. Expected one of: date, transaction_date, txn_date, posting_date, value_date.")
@@ -139,18 +172,8 @@ def detect_amount_pattern(columns, df=None):
     drcr_aliases = ['drcr', 'type', 'transactiontype', 'txntype']
     amount_aliases = ['amount', 'amt', 'value', 'transactionamount']
 
-    drcr_col = None
-    amount_col = None
-
-    for alias in drcr_aliases:
-        if alias in normalized:
-            drcr_col = normalized[alias]
-            break
-
-    for alias in amount_aliases:
-        if alias in normalized:
-            amount_col = normalized[alias]
-            break
+    drcr_col = _match_alias(normalized, drcr_aliases)
+    amount_col = _match_alias(normalized, amount_aliases)
 
     if drcr_col and amount_col and (df is None or _looks_like_drcr(df[drcr_col])):
         return ('drcr', drcr_col, amount_col)
@@ -159,18 +182,8 @@ def detect_amount_pattern(columns, df=None):
     debit_aliases = ['debit', 'withdrawal', 'debitamount', 'dr', 'withdrawalamount', 'withdrawalamt']
     credit_aliases = ['credit', 'deposit', 'creditamount', 'cr', 'depositamount', 'depositamt']
     
-    debit_col = None
-    credit_col = None
-    
-    for alias in debit_aliases:
-        if alias in normalized:
-            debit_col = normalized[alias]
-            break
-    
-    for alias in credit_aliases:
-        if alias in normalized:
-            credit_col = normalized[alias]
-            break
+    debit_col = _match_alias(normalized, debit_aliases)
+    credit_col = _match_alias(normalized, credit_aliases)
     
     if debit_col and credit_col:
         return ('debit_credit', debit_col, credit_col)
@@ -178,9 +191,9 @@ def detect_amount_pattern(columns, df=None):
     # Pattern C: Signed Amount. A running Balance is a stock, not a flow, so it
     # is deliberately NOT treated as a transaction amount (see P1-9 below).
     signed_aliases = amount_aliases
-    for alias in signed_aliases:
-        if alias in normalized:
-            return ('signed', normalized[alias])
+    signed_col = _match_alias(normalized, signed_aliases)
+    if signed_col is not None:
+        return ('signed', signed_col)
 
     # Nothing matched. If the only money-like column is a running balance, say
     # so explicitly rather than silently loading the balance as the amount.
@@ -364,54 +377,72 @@ def sniff_delimiter(csv_path, default=','):
     return best
 
 
+def _preview_rows(csv_path, sep, limit=20):
+    """
+    Read the first `limit` non-blank rows as raw cell lists.
+
+    pandas cannot do this job: a preamble line carrying fewer fields than the
+    real header makes read_csv raise ParserError outright, and a bare fallback
+    to row 0 then picks the banner line -- exactly the file that header
+    detection exists to handle. csv.reader imposes no field count.
+
+    Blank rows are dropped here because pandas' skip_blank_lines does the same,
+    so the index returned lines up with what `header=` will mean later.
+    """
+    rows = []
+    try:
+        with open(csv_path, 'r', encoding='utf-8-sig',
+                  errors='replace', newline='') as f:
+            for cells in csv.reader(f, delimiter=sep):
+                if not cells or all(not str(c).strip() for c in cells):
+                    continue
+                rows.append(cells)
+                if len(rows) >= limit:
+                    break
+    except (OSError, csv.Error):
+        return []
+    return rows
+
+
 def find_header_row(csv_path):
     """
     Find the actual header row in a CSV that may have metadata rows at the top.
     Returns the row number where the actual headers are.
     """
-    # Try reading first 20 rows to find headers
-    try:
-        # Read without assuming headers
-        df_preview = pd.read_csv(csv_path, nrows=20, header=None,
-                                 sep=sniff_delimiter(csv_path), engine='python')
-        
-        # Look for rows that contain common column keywords
-        date_keywords = ['date', 'transaction', 'txn', 'posting', 'value']
-        desc_keywords = ['description', 'name', 'narration', 'merchant', 'details', 'particulars']
-        amount_keywords = ['amount', 'debit', 'credit', 'balance', 'value', 'withdrawal', 'deposit']
-        
-        def _cell_matches(cells, keywords):
-            """Match a keyword against a whole cell token, not any substring of
-            the joined row. Substring matching let the generic keyword "value"
-            match a DATA cell like "value1", so a data row was picked as the
-            header and the error then quoted a value as a column name."""
-            for cell in cells:
-                tokens = re.split(r'[^a-z0-9]+', cell)
-                for kw in keywords:
-                    if ' ' in kw:
-                        if kw in cell:
-                            return True
-                    elif kw in tokens:
-                        return True
-            return False
+    date_keywords = ['date', 'transaction', 'txn', 'posting', 'value']
+    desc_keywords = ['description', 'name', 'narration', 'merchant',
+                     'details', 'particulars']
+    amount_keywords = ['amount', 'debit', 'credit', 'balance', 'value',
+                       'withdrawal', 'deposit']
 
-        for idx, row in df_preview.iterrows():
-            # Convert row to lowercase strings
-            row_str = [str(val).lower().strip() for val in row if pd.notna(val)]
-            
-            # Check if this row contains typical column headers
-            has_date = _cell_matches(row_str, date_keywords)
-            has_desc = _cell_matches(row_str, desc_keywords)
-            has_amount = _cell_matches(row_str, amount_keywords)
-            
-            # If we found at least 2 of the 3 required column types, this is likely the header
-            if sum([has_date, has_desc, has_amount]) >= 2:
-                return idx
-        
-        # If no header found, assume first row
-        return 0
-    except Exception:
-        return 0
+    def _cell_matches(cells, keywords):
+        """Match a keyword against a whole cell token, not any substring of
+        the joined row. Substring matching let the generic keyword "value"
+        match a DATA cell like "value1", so a data row was picked as the
+        header and the error then quoted a value as a column name."""
+        for cell in cells:
+            tokens = re.split(r'[^a-z0-9]+', cell)
+            for kw in keywords:
+                if ' ' in kw:
+                    if kw in cell:
+                        return True
+                elif kw in tokens:
+                    return True
+        return False
+
+    for idx, row in enumerate(_preview_rows(csv_path, sniff_delimiter(csv_path))):
+        row_str = [str(val).lower().strip() for val in row if str(val).strip()]
+
+        has_date = _cell_matches(row_str, date_keywords)
+        has_desc = _cell_matches(row_str, desc_keywords)
+        has_amount = _cell_matches(row_str, amount_keywords)
+
+        # At least 2 of the 3 required column types means this is the header.
+        if sum([has_date, has_desc, has_amount]) >= 2:
+            return idx
+
+    # If no header found, assume first row
+    return 0
 
 
 def detect_date_format(df, date_col):

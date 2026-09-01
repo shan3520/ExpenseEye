@@ -95,6 +95,42 @@ def _get_model():
     return _model
 
 
+def predict_categories(descriptions):
+    """
+    Categorize descriptions the one way the whole app should.
+
+    Returns a list of (category, confidence, source) triples. A model
+    prediction below CONFIDENCE_THRESHOLD falls back to the rule table.
+
+    This exists because anomaly detection used to call model.predict() raw
+    while this module applied the threshold and the fallback. The two then
+    disagreed about the SAME transaction -- one card called a large Amazon
+    charge "shopping" and another called it "subscriptions" -- and, worse, the
+    anomaly z-score was measured against the wrong category's baseline.
+    """
+    descriptions = [str(d) for d in descriptions]
+    if not descriptions:
+        return []
+
+    model = _get_model()
+    if model is None:
+        # Model unavailable -> pure rule-based so the feature still works.
+        return [(_rule_category(d), None, "rule_fallback") for d in descriptions]
+
+    proba = model.predict_proba(descriptions)
+    classes = model.classes_
+    top_idx = proba.argmax(axis=1)
+
+    out = []
+    for i, desc in enumerate(descriptions):
+        confidence = float(proba[i, top_idx[i]])
+        if confidence >= CONFIDENCE_THRESHOLD:
+            out.append((str(classes[top_idx[i]]), confidence, "model"))
+        else:
+            out.append((_rule_category(desc), confidence, "rule_fallback"))
+    return out
+
+
 def categorize_transactions(db_path):
     """
     Categorize every transaction in a session database.
@@ -116,45 +152,23 @@ def categorize_transactions(db_path):
         return {"success": False, "error": "No transactions to categorize."}
 
     descriptions = df["description"].fillna("").astype(str).tolist()
-    model = _get_model()
 
     results = []
     model_used = 0
     rule_used = 0
 
-    if model is not None:
-        import numpy as np
-        proba = model.predict_proba(descriptions)
-        classes = model.classes_
-        top_idx = proba.argmax(axis=1)
-        for i, desc in enumerate(descriptions):
-            confidence = float(proba[i, top_idx[i]])
-            if confidence >= CONFIDENCE_THRESHOLD:
-                category = str(classes[top_idx[i]])
-                source = "model"
-                model_used += 1
-            else:
-                category = _rule_category(desc)
-                source = "rule_fallback"
-                rule_used += 1
-            results.append({
-                "description": desc,
-                "amount": float(df.iloc[i]["amount"]),
-                "category": category,
-                "confidence": round(confidence, 3),
-                "source": source,
-            })
-    else:
-        # Model unavailable -> pure rule-based so the feature still works.
-        for i, desc in enumerate(descriptions):
-            results.append({
-                "description": desc,
-                "amount": float(df.iloc[i]["amount"]),
-                "category": _rule_category(desc),
-                "confidence": None,
-                "source": "rule_fallback",
-            })
+    for i, (category, confidence, source) in enumerate(predict_categories(descriptions)):
+        if source == "model":
+            model_used += 1
+        else:
             rule_used += 1
+        results.append({
+            "description": descriptions[i],
+            "amount": float(df.iloc[i]["amount"]),
+            "category": category,
+            "confidence": round(confidence, 3) if confidence is not None else None,
+            "source": source,
+        })
 
     # Spending breakdown per category (expenses only, as positive spend).
     breakdown = {}
@@ -168,7 +182,7 @@ def categorize_transactions(db_path):
 
     return {
         "success": True,
-        "model_available": model is not None,
+        "model_available": _get_model() is not None,
         "confidence_threshold": CONFIDENCE_THRESHOLD,
         "counts": {
             "total": len(results),
