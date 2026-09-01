@@ -25,6 +25,7 @@ import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
 import { CashFlowForecast } from '@/components/CashFlowForecast';
 import { TransactionCategories } from '@/components/TransactionCategories';
 import { AnomalyDetection } from '@/components/AnomalyDetection';
+import { Reconciliation } from '@/components/Reconciliation';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -113,6 +114,15 @@ const MODULES: ModuleDef[] = [
     icon: CalendarDots,
     span: 'lg:col-span-3',
     render: (s) => <SubscriptionsTable sessionId={s} />,
+  },
+  {
+    id: 'reconciliation',
+    nav: 'Reconciliation',
+    title: 'Recurring Reconciliation',
+    desc: 'Every charge expected to recur, matched against what actually landed — with the exceptions it could not resolve.',
+    icon: ArrowsClockwise,
+    span: 'lg:col-span-5',
+    render: (s) => <Reconciliation sessionId={s} />,
   },
   {
     id: 'overspending',

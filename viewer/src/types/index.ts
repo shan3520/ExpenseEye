@@ -146,3 +146,52 @@ export interface AnomaliesResponse {
   anomalies: Anomaly[];
   error?: string;
 }
+
+// ----- Reconciliation (expected recurring ledger vs actual charges) --------- //
+export interface ReconcileSeries {
+  merchant: string;
+  frequency: string;
+  cadence_days: number;
+  expected: number;
+  matched: number;
+  missing: number;
+  with_variance: number;
+  lapsed: boolean;
+  last_seen: string;
+}
+
+export interface ReconcileMissing {
+  merchant: string;
+  expected_date: string;
+  expected_amount: number;
+  frequency: string;
+  reason: string;
+}
+
+export interface ReconcileUnscheduled {
+  merchant: string;
+  txn_date: string;
+  amount: number;
+  reason: string;
+}
+
+export interface ReconcileResponse {
+  success: boolean;
+  method: string;
+  summary: {
+    series_reconciled: number;
+    expected_occurrences: number;
+    matched: number;
+    matched_clean: number;
+    matched_with_variance: number;
+    missing: number;
+    unscheduled: number;
+    match_rate: number;
+  };
+  series: ReconcileSeries[];
+  exceptions: {
+    missing: ReconcileMissing[];
+    unscheduled: ReconcileUnscheduled[];
+  };
+  error?: string;
+}
