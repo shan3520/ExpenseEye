@@ -470,27 +470,35 @@ function App() {
           </p>
           {MODULES.map((m) => {
             const Icon = m.icon;
-            const active = activeIds.includes(m.id);
+            // Three tiers, not two. The module you selected is PRIMARY; its
+            // row-mate is also on screen but was not chosen, so it reads as a
+            // quiet companion -- tinted, no accent bar, normal weight. Giving
+            // both the full treatment made two adjacent items merge into one
+            // block and destroyed any sense of where you actually are.
+            const primary = activeId === m.id;
+            const companion = !primary && activeIds.includes(m.id);
             return (
               <a
                 key={m.id}
                 href={`#${m.id}`}
                 onClick={(e) => handleNavClick(e, m.id)}
-                aria-current={activeId === m.id ? 'true' : undefined}
+                aria-current={primary ? 'true' : undefined}
                 className={cn(
                   'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-all duration-200 ease-out active:translate-y-px',
-                  active
-                    ? 'border-brand bg-brand/[0.15] font-semibold text-txt shadow-[inset_0_0_12px_rgb(var(--brand-rgb)/_0.05)]'
-                    : 'border-transparent font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
+                  primary &&
+                    'border-brand bg-brand/[0.15] font-semibold text-txt shadow-[inset_0_0_12px_rgb(var(--brand-rgb)/_0.05)]',
+                  companion && 'border-transparent bg-brand/[0.04] font-medium text-txt hover:bg-brand/[0.07]',
+                  !primary && !companion &&
+                    'border-transparent font-medium text-txt-muted hover:bg-tint-2 hover:text-txt'
                 )}
               >
                 <Icon
                   aria-hidden="true"
                   className={cn(
                     'h-[18px] w-[18px] shrink-0',
-                    active
-                      ? 'text-brand drop-shadow-[0_0_4px_rgb(var(--brand-rgb)_/_0.4)]'
-                      : 'text-txt-muted'
+                    primary && 'text-brand drop-shadow-[0_0_4px_rgb(var(--brand-rgb)_/_0.4)]',
+                    companion && 'text-brand/50',
+                    !primary && !companion && 'text-txt-muted'
                   )}
                 />
                 <span className="flex-1">{m.nav}</span>
@@ -548,19 +556,30 @@ function App() {
         <nav className="flex gap-1 overflow-x-auto border-t border-line px-3 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {MODULES.map((m) => {
             const Icon = m.icon;
-            const active = activeIds.includes(m.id);
+            const primary = activeId === m.id;
+            const companion = !primary && activeIds.includes(m.id);
             return (
               <a
                 key={m.id}
                 href={`#${m.id}`}
                 onClick={(e) => handleNavClick(e, m.id)}
-                aria-current={activeId === m.id ? 'true' : undefined}
+                aria-current={primary ? 'true' : undefined}
                 className={cn(
                   'flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-md px-3 text-data font-medium transition-all duration-150 ease-out active:translate-y-px',
-                  active ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted hover:text-txt active:bg-tint-2'
+                  primary && 'bg-brand/[0.15] text-txt',
+                  companion && 'bg-brand/[0.04] text-txt',
+                  !primary && !companion && 'text-txt-muted hover:text-txt active:bg-tint-2'
                 )}
               >
-                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-brand' : 'text-txt-faint')} aria-hidden="true" />
+                <Icon
+                  className={cn(
+                    'h-4 w-4 shrink-0',
+                    primary && 'text-brand',
+                    companion && 'text-brand/50',
+                    !primary && !companion && 'text-txt-faint'
+                  )}
+                  aria-hidden="true"
+                />
                 {m.nav}
               </a>
             );
