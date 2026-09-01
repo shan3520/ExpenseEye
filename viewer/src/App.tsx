@@ -215,6 +215,12 @@ function App() {
   // A nav click owns the selection until the smooth scroll settles; without
   // this the observer fires mid-scroll and overwrites the user's choice.
   const navLockRef = useRef<number>(0);
+  // id -> the ids laid out on the same grid row. Two cards share a row on
+  // desktop and none do below `lg`, so scroll position alone cannot name a
+  // single module; the nav highlights the whole row instead. Measured from the
+  // DOM rather than derived from the column spans, so it stays right at both
+  // breakpoints and if the spans ever change.
+  const [rowMap, setRowMap] = useState<Record<string, string[]>>({});
 
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
@@ -224,6 +230,9 @@ function App() {
   const reduce = useReducedMotion();
   const pointerFine = useMediaQuery('(pointer: fine)');
   const notMobile = useMediaQuery('(min-width: 769px)');
+  // Tailwind's `lg`: the breakpoint where the grid goes two-across and module
+  // cards start sharing a row.
+  const lgUp = useMediaQuery('(min-width: 1024px)');
   useSmoothScroll(pointerFine && notMobile && !reduce);
 
   // Kick off the backend cold-start on mount so it is likely warm by the time
@@ -263,18 +272,46 @@ function App() {
     setBooting(true);
   };
 
+  // Group the module cards by the line they start on, re-measuring whenever the
+  // grid reflows (breakpoint change, or a card growing as its data lands).
+  const measureRows = useCallback(() => {
+    const tops: { id: string; top: number }[] = [];
+    for (const m of MODULES) {
+      const el = document.getElementById(m.id);
+      if (el) tops.push({ id: m.id, top: Math.round(el.getBoundingClientRect().top + window.scrollY) });
+    }
+    const rows: string[][] = [];
+    let current: string[] = [];
+    let currentTop = Number.NEGATIVE_INFINITY;
+    for (const t of tops) {                      // MODULES is already DOM order
+      if (current.length && Math.abs(t.top - currentTop) <= 4) {
+        current.push(t.id);
+      } else {
+        if (current.length) rows.push(current);
+        current = [t.id];
+        currentTop = t.top;
+      }
+    }
+    if (current.length) rows.push(current);
+
+    const map: Record<string, string[]> = {};
+    for (const row of rows) for (const id of row) map[id] = row;
+    setRowMap(map);
+  }, []);
+
   // A nav click selects its module outright. The plain `href="#id"` jump left
   // the choice to the observer, which then resolved the row to the other card.
   const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     const el = document.getElementById(id);
     if (!el) return;                       // no target: let the browser try
     e.preventDefault();
+    measureRows();
     setActiveId(id);
     activeIdRef.current = id;
     navLockRef.current = Date.now() + 900;
     el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     history.replaceState(null, '', `#${id}`);
-  }, [reduce]);
+  }, [reduce, measureRows]);
 
   const handleLogout = () => {
     // Delete the session's server-side data on exit, backing the UI's
@@ -309,6 +346,27 @@ function App() {
     return () => ctx.revert();
   }, [sessionId, booting, reduce]);
 
+
+  useEffect(() => {
+    if (!sessionId || booting) return;
+    // Measure after the browser has laid the grid out, not synchronously in the
+    // effect body -- positions read before paint are the pre-layout ones.
+    const raf = requestAnimationFrame(measureRows);
+    // `lgUp` is a dependency on purpose: crossing the lg breakpoint is exactly
+    // when the pairing appears or disappears. The listeners below are a
+    // convenience on top of that -- the highlight never *depends* on an
+    // observer firing, because every path that changes the highlight
+    // re-measures first.
+    window.addEventListener('resize', measureRows);
+    const ro = new ResizeObserver(measureRows);
+    if (gridRef.current) ro.observe(gridRef.current);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measureRows);
+      ro.disconnect();
+    };
+  }, [sessionId, booting, lgUp, measureRows]);
+
   // Scroll-spy: highlight the module currently in view. Re-runs once booting
   // clears so it observes the modules that mount with the dashboard.
   useEffect(() => {
@@ -333,7 +391,10 @@ function App() {
         // and Anomalies were unreachable by scrolling OR clicking, while
         // Reconciliation and Overspending, alone on their rows, worked fine.
         const winner = MODULES.find((m) => visibleRef.current.has(m.id));
-        if (winner) setActiveId(winner.id);
+        if (winner && winner.id !== activeIdRef.current) {
+          measureRows();
+          setActiveId(winner.id);
+        }
       },
       { rootMargin: '-30% 0px -55% 0px', threshold: [0, 0.25, 0.5, 1] }
     );
@@ -344,7 +405,7 @@ function App() {
     });
     observerRef.current = obs;
     return () => obs.disconnect();
-  }, [sessionId, booting]);
+  }, [sessionId, booting, measureRows]);
 
   // ------------------------------------------------------------- restoring //
   // Hold the frame while a stored session is verified, so a reload does not
@@ -370,7 +431,15 @@ function App() {
   }
 
   // -------------------------------------------------------------- dashboard //
-  const activeLabel = MODULES.find((m) => m.id === activeId)?.nav ?? MODULES[0].nav;
+  // Everything on the current row reads as active. `activeId` stays the single
+  // primary -- it carries aria-current, so assistive tech gets one unambiguous
+  // answer while the visual highlight tells the truth about what is on screen.
+  const activeIds = rowMap[activeId] ?? [activeId];
+  const activeLabel =
+    activeIds
+      .map((id) => MODULES.find((m) => m.id === id)?.nav)
+      .filter(Boolean)
+      .join(' · ') || MODULES[0].nav;
 
   return (
     // Phosphor Light for the whole dashboard surface (sidebar, modules, states).
@@ -401,13 +470,13 @@ function App() {
           </p>
           {MODULES.map((m) => {
             const Icon = m.icon;
-            const active = activeId === m.id;
+            const active = activeIds.includes(m.id);
             return (
               <a
                 key={m.id}
                 href={`#${m.id}`}
                 onClick={(e) => handleNavClick(e, m.id)}
-                aria-current={active ? 'true' : undefined}
+                aria-current={activeId === m.id ? 'true' : undefined}
                 className={cn(
                   'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-all duration-200 ease-out active:translate-y-px',
                   active
@@ -479,13 +548,13 @@ function App() {
         <nav className="flex gap-1 overflow-x-auto border-t border-line px-3 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {MODULES.map((m) => {
             const Icon = m.icon;
-            const active = activeId === m.id;
+            const active = activeIds.includes(m.id);
             return (
               <a
                 key={m.id}
                 href={`#${m.id}`}
                 onClick={(e) => handleNavClick(e, m.id)}
-                aria-current={active ? 'true' : undefined}
+                aria-current={activeId === m.id ? 'true' : undefined}
                 className={cn(
                   'flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-md px-3 text-data font-medium transition-all duration-150 ease-out active:translate-y-px',
                   active ? 'bg-brand/[0.15] text-txt' : 'text-txt-muted hover:text-txt active:bg-tint-2'
