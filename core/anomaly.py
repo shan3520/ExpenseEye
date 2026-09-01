@@ -58,15 +58,15 @@ def detect_anomalies(db_path):
     if df.empty:
         return {"success": False, "error": "No expense transactions to analyze."}
 
-    # Exclude known recurring subscriptions from anomaly candidacy: a predictable
-    # monthly charge is a subscription, not an unexplained outlier. This keeps
-    # the two modules from contradicting each other on the same input (P2-15).
+    # Known recurring subscriptions are excluded from anomaly CANDIDACY -- a
+    # predictable monthly charge is a subscription, not an unexplained outlier,
+    # and the two modules must not contradict each other (P2-15). They are kept
+    # in the population, though, because dropping them would gut the statistics
+    # on subscription-heavy statements and hide genuine one-off outliers.
     sub_keys = {normalize_description(s["description"]) for s in detect_subscriptions(db_path)}
-    if sub_keys:
-        keep = df["description"].fillna("").map(lambda d: normalize_description(d) not in sub_keys)
-        df = df[keep]
-    if df.empty:
-        return {"success": False, "error": "No non-subscription expenses to analyze."}
+    df["is_subscription"] = df["description"].fillna("").map(
+        lambda d: normalize_description(d) in sub_keys
+    )
 
     df["spend"] = df["amount"].abs()
     df["category"] = _category_for(df["description"].fillna("").astype(str))
@@ -74,22 +74,39 @@ def detect_anomalies(db_path):
     anomalies = []
     category_stats = {}
 
+    # Statement-wide robust baseline, used when a category is too thin to judge
+    # on its own. Without it a lone large charge in a sparse category (say one
+    # laptop under "shopping") could never be flagged at all.
+    all_spends = df["spend"].to_numpy(dtype=float)
+    g_median = float(np.median(all_spends))
+    g_mad = float(np.median(np.abs(all_spends - g_median)))
+    g_scale = g_mad * _MAD_SCALE if g_mad > 0 else float(all_spends.std(ddof=0))
+
     for category, group in df.groupby("category"):
         spends = group["spend"].to_numpy(dtype=float)
         median = float(np.median(spends))
         mad = float(np.median(np.abs(spends - median)))
         # Fall back to std if MAD collapses (many identical values).
         scale = mad * _MAD_SCALE if mad > 0 else float(spends.std(ddof=0))
+
+        basis = "category"
+        if len(spends) < _MIN_CATEGORY_COUNT or scale <= 0:
+            # Too thin to judge locally -> compare against the whole statement.
+            median, scale, basis = g_median, g_scale, "statement"
+
         category_stats[category] = {
             "count": int(len(spends)),
-            "median_spend": round(median, 2),
+            "median_spend": round(float(np.median(spends)), 2),
+            "basis": basis,
             "typical_range_high": round(median + _Z_THRESHOLD * scale, 2) if scale > 0 else None,
         }
 
-        if len(spends) < _MIN_CATEGORY_COUNT or scale <= 0:
+        if scale <= 0:
             continue
 
         for _, row in group.iterrows():
+            if row["is_subscription"]:
+                continue  # accounted for by subscription detection / reconciliation
             z = (row["spend"] - median) / scale
             # Only large *over*-spends are interesting as anomalies.
             if z >= _Z_THRESHOLD:
@@ -116,6 +133,7 @@ def detect_anomalies(db_path):
         "method": "Robust per-category z-score (median + MAD)",
         "z_threshold": _Z_THRESHOLD,
         "total_transactions": int(len(df)),
+        "subscription_transactions_excluded": int(df["is_subscription"].sum()),
         "anomaly_count": len(anomalies),
         "anomalies": anomalies,
         "category_stats": category_stats,
