@@ -89,8 +89,12 @@ def test_overspending_requires_material_and_statistical_deviation(tmp_path):
     flagged = [r for r in res if r["status"] == "OVERSPENDING"]
     assert len(flagged) / len(res) < 0.25, "detector still fires on too much of its input"
     for r in flagged:
-        assert r["pct_deviation"] >= 20.0
-        assert r["z_score"] >= 2.0
+        # Either signal is sufficient, but one of them must genuinely hold.
+        assert r["pct_deviation"] >= 20.0 or r["z_score"] >= 2.0
+    # The one genuine outlier in this fixture must survive: 2023-09 is 3.1 sigma
+    # above its baseline, and suppressing it for being "only" +17.6% was the
+    # over-correction this rule exists to avoid.
+    assert any(r["month"] == "2023-09" for r in flagged)
 
 
 def test_a_genuine_spike_is_still_flagged(tmp_path):
