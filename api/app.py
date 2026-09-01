@@ -35,6 +35,7 @@ from core.loader import load_csv_to_db
 from core.forecast import forecast_cashflow
 from core.categorizer import categorize_transactions, get_model_card
 from core.anomaly import detect_anomalies
+from core.reconcile import reconcile_recurring
 
 app = Flask(__name__)
 
@@ -560,6 +561,29 @@ def anomalies():
         return jsonify({"success": False, "error": "Could not run anomaly detection for this session."}), 500
 
 
+@app.route('/reconcile', methods=['GET'])
+@rate_limit('compute', 60)
+def reconcile():
+    """
+    Reconcile the expected recurring ledger against actual statement charges.
+
+    Closes one finance-ops loop over the whole batch: reports a match rate plus
+    a two-sided exception list (expected-but-missing, actual-but-unscheduled).
+
+    Session id: X-Session-Id header (or legacy session_id query parameter).
+    """
+    db_path, err = _resolve_session_db(_get_session_id())
+    if err:
+        return err
+    try:
+        result = reconcile_recurring(db_path)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception:
+        logger.exception("[reconcile] failed")
+        return jsonify({"success": False, "error": "Could not reconcile this session."}), 500
+
+
 @app.route('/session/<session_id>', methods=['DELETE'])
 @rate_limit('compute', 60)
 def delete_session(session_id):
@@ -591,6 +615,7 @@ if __name__ == '__main__':
     print("  GET  /forecast        (X-Session-Id header)")
     print("  GET  /categorize      (X-Session-Id header)")
     print("  GET  /anomalies       (X-Session-Id header)")
+    print("  GET  /reconcile       (X-Session-Id header)")
     print("  GET  /model-card")
     # Reap any stale session files left over from a previous run on startup.
     _reap_sessions(force=True)
