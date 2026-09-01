@@ -270,8 +270,17 @@ def coerce_amount(value):
         if marker.group(1).upper() == 'DR':
             sign = -1.0
         s = s[:marker.start()].strip()
-    # Leading currency code (INR / USD / EUR / GBP / RS / RS.) then symbols.
-    s = re.sub(r'^(?:INR|USD|EUR|GBP|RS\.?)\s*', '', s, flags=re.IGNORECASE).strip()
+    # Pull a leading sign off BEFORE stripping currency codes: the code regex is
+    # anchored, so "-Rs.500" would otherwise keep its "Rs." and fail to parse.
+    lead = re.match(r'^([+-])\s*', s)
+    if lead:
+        if lead.group(1) == '-':
+            sign = -sign
+        s = s[lead.end():].strip()
+    # Currency codes appear on either side in real exports ("INR 500", "500 INR").
+    _CODE = r'(?:INR|USD|EUR|GBP|RS\.?)'
+    s = re.sub(rf'^{_CODE}\s*', '', s, flags=re.IGNORECASE).strip()
+    s = re.sub(rf'\s*{_CODE}$', '', s, flags=re.IGNORECASE).strip()
     s = re.sub(r'[₹$€£]', '', s).strip()
     # Trailing '-' as a negative sign (common in SAP / legacy exports).
     if s.endswith('-'):

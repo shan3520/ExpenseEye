@@ -26,6 +26,13 @@ from core.loader import coerce_amount
     ("1 234,56", 1234.56),        # space thousands + decimal comma
     ("INR 500", 500.0),           # leading currency code
     ("500-", -500.0),             # trailing minus
+    # A leading sign used to block the anchored currency-code strip, and a
+    # TRAILING code was never handled at all -- both rejected valid amounts.
+    ("-Rs.500", -500.0),
+    ("-INR 500", -500.0),
+    ("500 INR", 500.0),
+    ("500 USD", 500.0),
+    ("+500", 500.0),
 ])
 def test_coerce_amount_values(raw, expected):
     got = coerce_amount(raw)
