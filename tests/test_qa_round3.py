@@ -186,3 +186,69 @@ def test_anomaly_and_categorizer_agree(tmp_path):
         f"anomaly says {flagged['category']!r}, categorizer says "
         f"{same[0]['category']!r} for the same transaction"
     )
+
+
+# ----- calendar drift in the reconciliation schedule ----------------------- #
+
+def test_monthly_schedule_does_not_drift_off_calendar(tmp_path):
+    """A monthly bill lands on the same DAY OF MONTH, not every N days.
+    Projecting expected dates with a fixed day count accumulated ~half a day of
+    error per cycle, so on a long statement the projection drifted outside the
+    tolerance and every later charge was reported BOTH as missing AND as
+    unscheduled -- a fake match rate with a doubly wrong exception list."""
+    import datetime as dt
+    from core.loader import load_csv_to_db
+    from core.reconcile import reconcile_recurring
+
+    lines = ["Date,Description,Amount"]
+    d = dt.date(2022, 1, 3)
+    for _ in range(60):                       # five years, always the 3rd
+        lines.append(f"{d},UPI-NETFLIX INDIA,-649")
+        d = dt.date(d.year + (d.month == 12), d.month % 12 + 1, 3)
+
+    csv_path = os.path.join(tmp_path, "r.csv")
+    with open(csv_path, "w", newline="") as f:
+        f.write("\n".join(lines) + "\n")
+    db = os.path.join(tmp_path, "r.db")
+    load_csv_to_db(csv_path, db)
+
+    summary = reconcile_recurring(db)["summary"]
+    assert summary["match_rate"] == 100.0, summary
+    assert summary["missing"] == 0
+    assert summary["unscheduled"] == 0
+
+
+def test_genuinely_missing_charges_are_still_reported(tmp_path):
+    """The drift fix must remove only PHANTOM exceptions: a real gap in the
+    billing must still be reported."""
+    import datetime as dt
+    from core.loader import load_csv_to_db
+    from core.reconcile import reconcile_recurring
+
+    lines = ["Date,Description,Amount"]
+    d = dt.date(2022, 1, 3)
+    for i in range(24):
+        if i not in (10, 11):                 # two months genuinely skipped
+            lines.append(f"{d},UPI-NETFLIX INDIA,-649")
+        d = dt.date(d.year + (d.month == 12), d.month % 12 + 1, 3)
+
+    csv_path = os.path.join(tmp_path, "g.csv")
+    with open(csv_path, "w", newline="") as f:
+        f.write("\n".join(lines) + "\n")
+    db = os.path.join(tmp_path, "g.db")
+    load_csv_to_db(csv_path, db)
+
+    summary = reconcile_recurring(db)["summary"]
+    assert summary["missing"] == 2, summary
+    assert summary["match_rate"] < 100.0
+
+
+def test_month_end_billing_clamps_to_short_months(tmp_path):
+    """A bill on the 31st must project onto the 28th/29th of February rather
+    than overflowing into March."""
+    from core.reconcile import _add_months
+    import pandas as pd
+    assert _add_months(pd.Timestamp("2022-01-31"), 1) == pd.Timestamp("2022-02-28")
+    assert _add_months(pd.Timestamp("2024-01-31"), 1) == pd.Timestamp("2024-02-29")
+    assert _add_months(pd.Timestamp("2022-12-15"), 1) == pd.Timestamp("2023-01-15")
+    assert _add_months(pd.Timestamp("2022-01-03"), 3) == pd.Timestamp("2022-04-03")

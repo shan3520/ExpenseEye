@@ -15,6 +15,7 @@ actual-but-unscheduled (a duplicate or off-cycle charge). Nothing is
 cherry-picked: every expected occurrence is accounted for as matched,
 matched-with-variance, or missing.
 """
+import calendar
 import sqlite3
 from datetime import timedelta
 
@@ -33,6 +34,22 @@ _AMOUNT_TOL_ABS = 50.0
 # A series whose last charge predates the statement end by more than this many
 # cadences is reported as lapsed rather than generating phantom "missing" rows.
 _LAPSE_CADENCES = 1.5
+# Monthly and quarterly bills land on the same DAY OF MONTH, not every N days.
+# Projecting them with a fixed day count accumulates roughly half a day of
+# error per cycle, so on a long statement the projected date eventually drifts
+# outside the tolerance and every later charge is reported BOTH as a missing
+# occurrence and as an unscheduled charge. Calendar months have no such drift.
+_CALENDAR_STEP_MONTHS = {"MONTHLY": 1, "QUARTERLY": 3}
+
+
+def _add_months(ts, n):
+    """Add n calendar months, clamping the day for short months so the 31st of
+    January steps to the 28th/29th of February rather than overflowing."""
+    month_index = ts.month - 1 + n
+    year = ts.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(ts.day, calendar.monthrange(year, month)[1])
+    return pd.Timestamp(year=year, month=month, day=day)
 
 
 def _load_expenses(db_path):
@@ -94,9 +111,13 @@ def reconcile_recurring(db_path):
         # Projecting past the last charge would invent missing rows for a
         # subscription that was simply cancelled, so a lapse is reported
         # separately instead of being counted as a failure.
+        step_months = _CALENDAR_STEP_MONTHS.get(sub.get("frequency"))
         expected_dates, i = [], 0
         while True:
-            d = first + timedelta(days=cadence * i)
+            if step_months:
+                d = _add_months(first, step_months * i)
+            else:
+                d = first + timedelta(days=cadence * i)
             if d > last + timedelta(days=date_tol):
                 break
             expected_dates.append(d)

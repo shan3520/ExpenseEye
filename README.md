@@ -274,6 +274,15 @@ never landed) and `unscheduled` (recurring-merchant charge no occurrence explain
 Matched rows carry day-drift and amount-variance; a series that simply stopped is
 reported as `lapsed` rather than generating phantom missing rows.
 
+Monthly and quarterly schedules are projected by **calendar month** (same day of
+month, clamped for short months), not by a fixed day count. A fixed count
+accumulates about half a day of error per cycle, so on a multi-year statement the
+projected date drifts outside the match tolerance and every later charge is
+reported *both* as a missing occurrence and as an unscheduled charge. On a 75-month
+series billed on the 3rd of every month that produced a 71.2% match rate with 21
+missing and 23 unscheduled; the correct answer, now reported, is 100% with an empty
+exception list.
+
 #### `GET /categorize?session_id=<uuid>`
 ML transaction categorization. Uses a trained TF-IDF + LogisticRegression
 classifier, falling back to rule-based keyword matching only for low-confidence
