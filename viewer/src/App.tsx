@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import type { ComponentType } from 'react';
 // Phosphor Light across the whole app now — one icon language, finer line weight.
 import {
@@ -18,7 +18,7 @@ import {
   SignOut,
 } from '@phosphor-icons/react';
 import { FileUpload } from '@/components/FileUpload';
-import { warmUpBackend, deleteSession } from '@/lib/api';
+import { warmUpBackend, deleteSession, sessionExists } from '@/lib/api';
 import { SessionTape } from '@/components/SessionTape';
 import { SubscriptionsTable } from '@/components/SubscriptionsTable';
 import { OverspendingAnalysis } from '@/components/OverspendingAnalysis';
@@ -137,6 +137,11 @@ const MODULES: ModuleDef[] = [
 
 const REPO_URL = 'https://github.com/shan3520/expenseeye';
 
+// Where the active session id is parked so it survives a page reload. sessionStorage
+// -- not localStorage -- on purpose: it is scoped to the tab and dies with it, which
+// is what the "session-scoped, auto-deleted" promise on screen says happens.
+const SESSION_KEY = 'expenseeye.session';
+
 /** Module header: icon + title, no scaffolding numbers or eyebrows. */
 function ModuleHeader({ mod }: { mod: ModuleDef }) {
   const Icon = mod.icon;
@@ -189,11 +194,29 @@ function ModuleCard({ mod, sessionId }: { mod: ModuleDef; sessionId: string }) {
 
 function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // True while a stored session id is being checked against the server. Starts
+  // true only when there is something to restore, so a first-time visitor goes
+  // straight to the landing page with no flash.
+  const [restoring, setRestoring] = useState<boolean>(() => {
+    try { return !!sessionStorage.getItem(SESSION_KEY); } catch { return false; }
+  });
   // `booting` gates the upload→dashboard bridge: once an upload succeeds we hold
   // on the ProcessingTerminal until its sequence finishes, then reveal the board.
   const [booting, setBooting] = useState(false);
   const [activeId, setActiveId] = useState<string>(MODULES[0].id);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  // Which modules are currently inside the scroll-spy band. IntersectionObserver
+  // hands the callback ONLY the entries whose intersection changed, so the set
+  // has to be accumulated across calls -- picking a winner from a single
+  // callback's slice leaves the highlight stale.
+  const visibleRef = useRef<Set<string>>(new Set());
+  // Read inside the observer callback, which closes over its first render.
+  const activeIdRef = useRef<string>(MODULES[0].id);
+  // A nav click owns the selection until the smooth scroll settles; without
+  // this the observer fires mid-scroll and overwrites the user's choice.
+  const navLockRef = useRef<number>(0);
+
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
   // Motion gating. Lenis smooth scroll only on a desktop pointer, a non-mobile
   // viewport, and when the user hasn't asked for reduced motion — touch and
@@ -211,15 +234,53 @@ function App() {
   const gridRef = useRef<HTMLDivElement>(null);
   const animatedSession = useRef<string | null>(null);
 
+  // Restore an in-flight session across a reload. The id previously lived only
+  // in component state, so any refresh -- or a stray back/forward -- dropped the
+  // user on the landing page while their parsed statement was still sitting on
+  // the server, now unreachable, until its TTL expired.
+  useEffect(() => {
+    let stored: string | null = null;
+    try { stored = sessionStorage.getItem(SESSION_KEY); } catch { stored = null; }
+    if (!stored) return;
+
+    let cancelled = false;
+    (async () => {
+      const alive = await sessionExists(stored);
+      if (cancelled) return;
+      if (alive) {
+        setSessionId(stored);            // straight to the board, no boot replay
+      } else {
+        try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+      }
+      setRestoring(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const handleUploadSuccess = (id: string) => {
+    try { sessionStorage.setItem(SESSION_KEY, id); } catch { /* ignore */ }
     setSessionId(id);
     setBooting(true);
   };
+
+  // A nav click selects its module outright. The plain `href="#id"` jump left
+  // the choice to the observer, which then resolved the row to the other card.
+  const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;                       // no target: let the browser try
+    e.preventDefault();
+    setActiveId(id);
+    activeIdRef.current = id;
+    navLockRef.current = Date.now() + 900;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    history.replaceState(null, '', `#${id}`);
+  }, [reduce]);
 
   const handleLogout = () => {
     // Delete the session's server-side data on exit, backing the UI's
     // "deleted on exit" promise (P0-4), then clear local state.
     if (sessionId) deleteSession(sessionId);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
     setSessionId(null);
     setBooting(false);
     setActiveId(MODULES[0].id);
@@ -254,13 +315,29 @@ function App() {
     if (!sessionId || booting) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) setActiveId(visible[0].target.id);
+        for (const e of entries) {
+          if (e.isIntersecting) visibleRef.current.add(e.target.id);
+          else visibleRef.current.delete(e.target.id);
+        }
+        // A click just set the selection; leave it alone while it scrolls.
+        if (Date.now() < navLockRef.current) return;
+        // Keep the current module selected for as long as it is still in the
+        // band, so a clicked card does not snap to its row-mate on the next
+        // scroll tick.
+        if (visibleRef.current.has(activeIdRef.current)) return;
+        // Resolve ties in DOCUMENT order. The previous code sorted by
+        // intersectionRatio -- the fraction of each element's OWN area in view
+        // -- and the grid puts two cards on a row (forecast+categories,
+        // anomalies+subscriptions). The shorter card of a pair always had the
+        // larger ratio, so the taller left-hand one could never win: Forecast
+        // and Anomalies were unreachable by scrolling OR clicking, while
+        // Reconciliation and Overspending, alone on their rows, worked fine.
+        const winner = MODULES.find((m) => visibleRef.current.has(m.id));
+        if (winner) setActiveId(winner.id);
       },
       { rootMargin: '-30% 0px -55% 0px', threshold: [0, 0.25, 0.5, 1] }
     );
+    visibleRef.current.clear();
     MODULES.forEach((m) => {
       const el = document.getElementById(m.id);
       if (el) obs.observe(el);
@@ -268,6 +345,19 @@ function App() {
     observerRef.current = obs;
     return () => obs.disconnect();
   }, [sessionId, booting]);
+
+  // ------------------------------------------------------------- restoring //
+  // Hold the frame while a stored session is verified, so a reload does not
+  // flash the landing page before the board comes back.
+  if (restoring && !sessionId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <p className="font-mono text-micro uppercase tracking-wider text-txt-faint">
+          Restoring session…
+        </p>
+      </div>
+    );
+  }
 
   // ---------------------------------------------------------------- landing //
   if (!sessionId) {
@@ -316,6 +406,7 @@ function App() {
               <a
                 key={m.id}
                 href={`#${m.id}`}
+                onClick={(e) => handleNavClick(e, m.id)}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
                   'flex min-h-11 items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm transition-all duration-200 ease-out active:translate-y-px',
@@ -393,6 +484,7 @@ function App() {
               <a
                 key={m.id}
                 href={`#${m.id}`}
+                onClick={(e) => handleNavClick(e, m.id)}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
                   'flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-md px-3 text-data font-medium transition-all duration-150 ease-out active:translate-y-px',
@@ -416,8 +508,8 @@ function App() {
               Spending overview
             </h1>
             <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-txt-muted">
-              Five read-outs on this statement, parsed server-side, per session. Scan the board or jump from the
-              rail; the tape above tracks what you're looking at.
+              {MODULES.length} read-outs on this statement, parsed server-side, per session. Scan the board or jump
+              from the rail; the tape above tracks what you're looking at.
             </p>
           </div>
 
