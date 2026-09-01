@@ -258,6 +258,15 @@ baseline fallback for sparse history. Reports holdout accuracy.
 }
 ```
 
+#### `GET /reconcile`  (session id via `X-Session-Id`)
+
+Reconciles the **expected** recurring ledger (detected series: merchant + cadence +
+amount band) against the **actual** charges in the statement. Returns a match rate over
+every expected occurrence plus a two-sided exception list — `missing` (expected charge
+never landed) and `unscheduled` (recurring-merchant charge no occurrence explains).
+Matched rows carry day-drift and amount-variance; a series that simply stopped is
+reported as `lapsed` rather than generating phantom missing rows.
+
 #### `GET /categorize?session_id=<uuid>`
 ML transaction categorization. Uses a trained TF-IDF + LogisticRegression
 classifier, falling back to rule-based keyword matching only for low-confidence
