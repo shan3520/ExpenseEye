@@ -32,21 +32,28 @@ git push origin main
 
 2. **Verify `requirements.txt` exists in root:**
 ```txt
-flask
-flask-cors
+flask==3.0.3
+flask-cors==6.0.1
 gunicorn==26.2.0
-pandas
-numpy
-scikit-learn==1.7.1
+numpy==1.26.4
+pandas==2.1.3
+scipy==1.15.3
 statsmodels==0.14.6
+scikit-learn==1.7.1
 joblib==1.5.1
-scipy==1.16.1
 ```
 
-> The ML libraries are pinned and deploy-safe (no Prophet). The trained model
-> is committed under `models/`, so **no training runs at deploy time** — but the
-> first build is slower and more memory-hungry than a plain Flask app (see notes
-> in Step 3). A [`render.yaml`](../render.yaml) Blueprint is also included.
+3. **Verify `.python-version` exists in root** (a single line, `3.11.9`). See the
+   interpreter note in Step 2 -- without it Render uses its current default,
+   which these pins have no wheels for.
+
+> Everything is pinned, including the interpreter. scikit-learn in particular is
+> pinned to the version that TRAINED `models/category_clf.joblib`; loading a
+> persisted estimator under a different version is unsupported. The model is
+> committed, so **no training runs at deploy time** -- but the first build is
+> slower and more memory-hungry than a plain Flask app (see notes in Step 3). A
+> [`render.yaml`](../render.yaml) Blueprint is also included, though note it is
+> only read for Blueprint-created services.
 
 ### Step 2: Create Render Web Service
 
