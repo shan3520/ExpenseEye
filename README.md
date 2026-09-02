@@ -405,6 +405,34 @@ conditions together missed each of those cases.
 - Handles zero/undefined variance with a 10% floor on std_dev
 - Skips the first 3 months (insufficient history)
 
+### Anomaly Detection (ML)
+
+**Method:** robust per-category z-score (median + MAD), so a handful of extreme
+outliers cannot inflate the spread and mask each other.
+
+Two things are deliberately **not** flagged:
+
+- **Detected subscriptions.** A predictable monthly charge is a subscription,
+  not an unexplained outlier. They stay in the population (dropping them would
+  gut the statistics on subscription-heavy statements) but are excluded from
+  candidacy.
+- **Charges that are ordinary for their own merchant.** A category is a coarse
+  bucket: petrol (₹900–2,600) shares `transport` with bike taxis (₹45–190), so
+  *every* fill scores a huge category z-score. On the demo statement that
+  flagged 28 charges of which **27 were the same petrol station** — and
+  something that happens 27 times is a pattern, not an anomaly. A charge must
+  now be unusual for its category **and** for its merchant.
+
+The merchant test is not an amnesty. It applies only to merchants seen at least
+4 times, so a genuine one-off from a first-time merchant is still flagged; and a
+merchant you use constantly can still make one charge that does not belong — a
+₹84,999 purchase at a merchant whose usual is ₹1,800 is flagged, with the
+merchant comparison stated in the explanation. Suppressed charges are counted in
+`routine_for_merchant_suppressed`, so "found nothing" and "ruled these out" stay
+distinguishable.
+
+  demo statement:  28 flagged -> 1 flagged, 27 reported as routine-for-merchant
+
 ### Cash-Flow Forecast (ML)
 
 **Model:** Holt-Winters exponential smoothing (`statsmodels`) on a daily and

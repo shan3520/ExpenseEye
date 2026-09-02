@@ -341,3 +341,72 @@ def test_charted_history_still_shows_the_one_off(tmp_path):
     may = next(m for m in fc["monthly"]["history"] if m["month"] == "2025-05")
     other = next(m for m in fc["monthly"]["history"] if m["month"] == "2025-04")
     assert may["spend"] > other["spend"] + 80000, "the spike was scrubbed from the chart"
+
+
+# ----- anomaly precision: a pattern is not an anomaly ---------------------- #
+
+def _anomalies_for(tmp_path, lines, name="an"):
+    from core.loader import load_csv_to_db
+    from core.anomaly import detect_anomalies
+    csv_path = os.path.join(tmp_path, f"{name}.csv")
+    with open(csv_path, "w", newline="") as fh:
+        fh.write("\n".join(["Date,Description,Amount"] + lines) + "\n")
+    db = os.path.join(tmp_path, f"{name}.db")
+    load_csv_to_db(csv_path, db)
+    return detect_anomalies(db)
+
+
+def _cheap_transport(n=40):
+    """Bike taxis: small, frequent, and the reason petrol looks huge."""
+    return [
+        f"2025-{(i % 8) + 1:02d}-{(i % 27) + 1:02d},UPI-RAPIDO BIKE TAXI,-{60 + (i * 7) % 120}"
+        for i in range(n)
+    ]
+
+
+def test_repeat_high_charges_are_not_anomalies(tmp_path):
+    """Petrol shares "transport" with bike taxis, so every fill scores a huge
+    CATEGORY z-score. 27 of them is a pattern, not 27 anomalies."""
+    petrol = [
+        f"2025-{(i % 8) + 1:02d}-{(i % 25) + 2:02d},POS INDIAN OIL PETROL,-{1400 + (i * 53) % 900}"
+        for i in range(20)
+    ]
+    res = _anomalies_for(tmp_path, _cheap_transport() + petrol)
+    flagged = [a["description"] for a in res["anomalies"]]
+    assert not any("PETROL" in d for d in flagged), flagged
+    assert res["routine_for_merchant_suppressed"] >= 1
+
+
+def test_suppression_is_reported_not_silent(tmp_path):
+    """The difference between "found nothing" and "ruled these out" must stay
+    visible in the response."""
+    petrol = [
+        f"2025-{(i % 8) + 1:02d}-{(i % 25) + 2:02d},POS INDIAN OIL PETROL,-{1400 + (i * 53) % 900}"
+        for i in range(20)
+    ]
+    res = _anomalies_for(tmp_path, _cheap_transport() + petrol)
+    assert "routine_for_merchant_suppressed" in res
+    assert res["routine_for_merchant_suppressed"] > 0
+
+
+def test_genuine_outlier_at_a_familiar_merchant_still_flagged(tmp_path):
+    """The suppression must not become a blanket amnesty: a merchant you use
+    constantly can still make one charge that does not belong."""
+    amazon = [
+        f"2025-{(i % 8) + 1:02d}-{(i % 25) + 2:02d},UPI-AMAZON SELLER SVCS,-{300 + (i * 91) % 2600}"
+        for i in range(30)
+    ]
+    res = _anomalies_for(tmp_path, amazon + ["2025-06-18,UPI-AMAZON SELLER SVCS,-84999"])
+    flagged = [a for a in res["anomalies"] if abs(a["spend"] - 84999) < 1]
+    assert flagged, [a["description"] for a in res["anomalies"]]
+    assert "merchant's usual" in flagged[0]["explanation"]
+
+
+def test_first_time_merchant_cannot_excuse_itself(tmp_path):
+    """A merchant with no track record here has no "usual" to hide behind."""
+    res = _anomalies_for(
+        tmp_path,
+        _cheap_transport() + ["2025-05-14,UPI-CROMA ELECTRONICS,-78999"],
+    )
+    assert any(abs(a["spend"] - 78999) < 1 for a in res["anomalies"]), \
+        [a["description"] for a in res["anomalies"]]

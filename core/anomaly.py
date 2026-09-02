@@ -26,6 +26,14 @@ from core.subscriptions import detect_subscriptions, normalize_description
 _Z_THRESHOLD = 3.5
 # Categories need at least this many transactions before we judge outliers.
 _MIN_CATEGORY_COUNT = 5
+# ...and a merchant needs at least this many charges before its OWN history can
+# be used to excuse a charge. A category is a coarse bucket: petrol (900-2,600)
+# shares "transport" with bike taxis (45-190), so every fill scores a huge
+# category z-score. On the demo statement that flagged 28 charges of which 27
+# were the same petrol station -- and something that happens 27 times is a
+# pattern, not an anomaly. A charge must now be unusual for its category AND
+# unusual for its own merchant, unless the merchant is too new to judge.
+_MIN_MERCHANT_HISTORY = 4
 # MAD -> std-dev consistency constant for normally distributed data.
 _MAD_SCALE = 1.4826
 
@@ -72,9 +80,37 @@ def detect_anomalies(db_path):
 
     df["spend"] = df["amount"].abs()
     df["category"] = _category_for(df["description"].fillna("").astype(str))
+    df["merchant"] = df["description"].fillna("").map(normalize_description)
+
+    # Per-merchant robust baselines, for merchants seen often enough to have a
+    # "usual" at all. Same statistics as the category baseline, one level down.
+    merchant_stats = {}
+    for _key, _grp in df.groupby("merchant"):
+        _vals = _grp["spend"].to_numpy(dtype=float)
+        if not _key or len(_vals) < _MIN_MERCHANT_HISTORY:
+            continue
+        _med = float(np.median(_vals))
+        _mad = float(np.median(np.abs(_vals - _med)))
+        _scale = _mad * _MAD_SCALE if _mad > 0 else float(_vals.std(ddof=0))
+        merchant_stats[_key] = (_med, _scale)
+
+    def _routine_for_merchant(key, spend):
+        """Is this charge unremarkable for the merchant that made it?
+
+        A merchant with no track record here cannot excuse anything, so a
+        genuine one-off from a first-time merchant is still flagged.
+        """
+        stat = merchant_stats.get(key)
+        if stat is None:
+            return False
+        med, scale = stat
+        if scale <= 0:                      # every charge identical -> routine
+            return abs(spend - med) < 1e-9
+        return (spend - med) / scale < _Z_THRESHOLD
 
     anomalies = []
     category_stats = {}
+    routine_suppressed = 0
 
     # Statement-wide robust baseline, used when a category is too thin to judge
     # on its own. Without it a lone large charge in a sparse category (say one
@@ -112,7 +148,21 @@ def detect_anomalies(db_path):
             z = (row["spend"] - median) / scale
             # Only large *over*-spends are interesting as anomalies.
             if z >= _Z_THRESHOLD:
+                # ...and only if it is also unusual for this particular
+                # merchant. A petrol fill is large for "transport" every single
+                # time, which makes it a pattern rather than an outlier.
+                if _routine_for_merchant(row["merchant"], row["spend"]):
+                    routine_suppressed += 1
+                    continue
                 multiple = row["spend"] / median if median > 0 else float("inf")
+                merchant_note = ""
+                if row["merchant"] in merchant_stats:
+                    m_med = merchant_stats[row["merchant"]][0]
+                    if m_med > 0:
+                        merchant_note = (
+                            f" It is also {row['spend'] / m_med:.1f}x this "
+                            f"merchant's usual ~{m_med:.0f}."
+                        )
                 anomalies.append({
                     "txn_date": str(row["txn_date"]),
                     "description": row["description"],
@@ -124,7 +174,7 @@ def detect_anomalies(db_path):
                     "explanation": (
                         f"{row['spend']:.0f} is {multiple:.1f}x the typical "
                         f"{category} spend (~{median:.0f}); robust z-score "
-                        f"{z:.1f} exceeds {_Z_THRESHOLD}."
+                        f"{z:.1f} exceeds {_Z_THRESHOLD}." + merchant_note
                     ),
                 })
 
@@ -136,6 +186,10 @@ def detect_anomalies(db_path):
         "z_threshold": _Z_THRESHOLD,
         "total_transactions": int(len(df)),
         "subscription_transactions_excluded": int(df["is_subscription"].sum()),
+        # Charges that cleared the category bar but are ordinary for their own
+        # merchant. Reported rather than silently dropped, so the difference
+        # between "found nothing" and "ruled these out" stays visible.
+        "routine_for_merchant_suppressed": int(routine_suppressed),
         "anomaly_count": len(anomalies),
         "anomalies": anomalies,
         "category_stats": category_stats,
