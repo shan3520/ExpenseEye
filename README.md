@@ -386,6 +386,34 @@ monthly spend time series, with a moving-average + linear-trend baseline
 fallback when history is sparse (< ~60 daily points or < 6 months). Never
 crashes on sparse data.
 
+**One-off charges are excluded from what the model learns.** A laptop, a
+deposit, an annual premium is real money but is not a recurring pattern to
+project; left in, the trend chases it and the model predicts another one. On a
+six-month statement, one ₹84,999 purchase moved next-month from ₹65,830 to
+₹94,163 and MAPE from 12.7% to 102%.
+
+A charge qualifies only if it is (1) not part of a detected recurring series,
+(2) large against the statement (robust z on median + MAD), and (3) **≥20% of
+its own month** — the test that separates *large* from *distorting*. Rent fails
+(1); a ₹2,651 shopping trip in a ₹70,000 month fails (3).
+
+Damping is then a **hypothesis that must win a back-test**, not an assumption.
+Both candidate models are graded against the same target — the raw totals
+actually spent — and the damped one is used only if it predicts those totals
+better. This is not decoration: on `sample_statement.csv`, whose rent is written
+inconsistently (`LANDLORD RENT` / `HOUSE RENT TRANSFER`), the detector wrongly
+called 18 rent payments one-offs; the back-test caught it (MAE ₹3,274 → ₹25,004)
+and the raw model was kept. Nothing is hidden either way: the charges are named
+in the response, the spike stays in the charted history, they remain flagged
+under Anomalies, and the rejected candidate's accuracy is published beside the
+chosen one.
+
+**Both headline totals come from one model.** `next_30_day_total` used to be the
+sum of an independent *daily* model while `next_month_total` came from the
+*monthly* one, so the two figures were different forecasts and openly
+contradicted each other on screen (₹1,02,366 beside ₹69,594 — a 47% gap). The
+30-day figure is now the month forecast scaled by `30 / days-in-month`.
+
 **Accuracy — reported on two datasets, each labelled (these metrics are dataset-dependent):**
 - **Synthetic sample** (`data/sample_statement.csv`): monthly rolling one-step-ahead
   holdout **MAE ₹3,274 · RMSE ₹3,575 · MAPE 5.21%**. Holt-Winters fits this generator

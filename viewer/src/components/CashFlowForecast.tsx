@@ -74,11 +74,23 @@ export function CashFlowForecast({ sessionId }: Props) {
         <div className="p-4">
           <div className="kpi-label text-accent-light"><Target className="h-3.5 w-3.5" aria-hidden="true" /><span>Next month</span></div>
           <div className="kpi-value text-accent-light"><Counter value={data.next_month_total} format={fmt} /></div>
+          {/* These two used to come from two independent models and openly
+              disagreed on screen (₹1,02,366 beside ₹69,594). One model now
+              drives both; say so rather than leaving the reader to wonder. */}
+          {data.totals_basis && (
+            <p className="mt-1 font-mono text-micro text-txt-faint">same model as the 30-day figure</p>
+          )}
         </div>
         <div className="p-4">
           <div className="kpi-label"><Pulse className="h-3.5 w-3.5" aria-hidden="true" /><span>History</span></div>
           <div className="kpi-value">{data.history_months}<span className="ml-1 text-base text-txt-faint">mo</span></div>
-          <p className="mt-1 font-mono text-micro text-txt-faint">{data.history_days} days of data</p>
+          {/* "22 mo" from "645 days" looks like bad arithmetic (645/30.4 = 21.2)
+              but is not: a span starting mid-month TOUCHES 22 calendar months,
+              and that count is what the monthly model has to learn from. Say
+              which quantity each number is. */}
+          <p className="mt-1 font-mono text-micro text-txt-faint">
+            {data.history_days} days · {data.history_months} calendar months
+          </p>
         </div>
       </div>
 
@@ -180,6 +192,37 @@ export function CashFlowForecast({ sessionId }: Props) {
             ))}
           </div>
           <p className="mt-3 text-micro text-txt-faint">{acc.basis}{acc.holdout_months ? ` · ${acc.holdout_months}-month holdout` : ''}</p>
+
+          {/* One-off charges are excluded from what the model LEARNS, never
+              hidden: the charges are named, and the accuracy of the model that
+              was NOT used is printed beside it so the choice can be checked. */}
+          {data.one_offs_excluded_from_training && data.one_offs && data.one_offs.count > 0 && (
+            <div className="mt-4 rounded-md border border-line bg-tint-1 p-3">
+              <p className="text-micro leading-relaxed text-txt-muted">
+                <span className="font-semibold text-txt">
+                  {data.one_offs.count} one-off charge{data.one_offs.count === 1 ? '' : 's'}
+                </span>{' '}
+                ({fmt(data.one_offs.total)}) left out of the trend — one-time spending is not
+                a recurring pattern to project. {data.one_offs.count === 1 ? 'It is' : 'They are'}{' '}
+                still counted in the history above and flagged under Anomalies.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {data.one_offs.charges.map((c) => (
+                  <li key={`${c.date}-${c.description}`} className="flex items-baseline justify-between gap-3 font-mono text-micro">
+                    <span className="truncate text-txt-faint">{c.date} · {c.description}</span>
+                    <span className="shrink-0 tabular-nums text-txt-muted">{fmt(c.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+              {data.accuracy_alternative?.mape != null && (
+                <p className="mt-2 border-t border-line pt-2 font-mono text-micro text-txt-faint">
+                  Kept in, the same back-test gives MAPE{' '}
+                  <span className="text-danger">{data.accuracy_alternative.mape.toFixed(1)}%</span>
+                  {' '}— which is why they are out.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="inset p-4">

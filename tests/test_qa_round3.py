@@ -252,3 +252,92 @@ def test_month_end_billing_clamps_to_short_months(tmp_path):
     assert _add_months(pd.Timestamp("2024-01-31"), 1) == pd.Timestamp("2024-02-29")
     assert _add_months(pd.Timestamp("2022-12-15"), 1) == pd.Timestamp("2023-01-15")
     assert _add_months(pd.Timestamp("2022-01-03"), 3) == pd.Timestamp("2022-04-03")
+
+
+# ----- forecast: one-off damping, chosen by back-test ---------------------- #
+
+def _statement(months, per_month, extra=None):
+    """A simple multi-month statement; `extra` adds (date, desc, amount) rows."""
+    lines = ["Date,Description,Amount"]
+    for m in months:
+        for d, (desc, amt) in enumerate(per_month, start=1):
+            lines.append(f"2025-{m:02d}-{d:02d},{desc},-{amt}")
+    for row in (extra or []):
+        lines.append(",".join(str(x) for x in row))
+    return "\n".join(lines) + "\n"
+
+
+def _forecast_for(tmp_path, text, name="f"):
+    from core.loader import load_csv_to_db
+    from core.forecast import forecast_cashflow
+    csv_path = os.path.join(tmp_path, f"{name}.csv")
+    with open(csv_path, "w", newline="") as fh:
+        fh.write(text)
+    db = os.path.join(tmp_path, f"{name}.db")
+    load_csv_to_db(csv_path, db)
+    return forecast_cashflow(db)
+
+
+def test_headline_totals_come_from_one_model(tmp_path):
+    """"Next 30 days" summed an independent DAILY model while "next month" came
+    from a MONTHLY one, so the two headline figures were different forecasts and
+    contradicted each other on screen by 47%."""
+    per_month = [(f"MERCHANT {i}", 500 + i * 37) for i in range(1, 26)]
+    fc = _forecast_for(tmp_path, _statement(range(1, 9), per_month))
+    assert fc["success"], fc
+    ratio = fc["next_30_day_total"] / fc["next_month_total"]
+    # Pure arithmetic now: the month forecast scaled by 30 / days-in-month.
+    assert 30 / 31 - 0.001 <= ratio <= 1.0 + 0.001, (ratio, fc["totals_basis"])
+
+
+def test_recurring_charges_are_never_damped(tmp_path):
+    """A size-only outlier test flags RENT every month -- the single most
+    recurring charge there is, and the exact rhythm the forecast projects."""
+    from core.forecast import _one_off_mask, _load_expenses
+    from core.loader import load_csv_to_db
+
+    per_month = [("UPI-RENT LANDLORD", 18500)] + [
+        (f"MERCHANT {i}", 400 + i * 23) for i in range(1, 25)
+    ]
+    csv_path = os.path.join(tmp_path, "r.csv")
+    with open(csv_path, "w", newline="") as fh:
+        fh.write(_statement(range(1, 9), per_month))
+    db = os.path.join(tmp_path, "r.db")
+    load_csv_to_db(csv_path, db)
+
+    df = _load_expenses(db)
+    mask = _one_off_mask(df, db)
+    flagged = df[mask]["description"].tolist()
+    assert not any("RENT" in d for d in flagged), flagged
+
+
+def test_one_off_damping_must_win_the_backtest(tmp_path):
+    """Damping is a hypothesis, not an article of faith. On a statement with no
+    distorting one-off it must not be applied at all."""
+    per_month = [(f"MERCHANT {i}", 500 + i * 31) for i in range(1, 26)]
+    fc = _forecast_for(tmp_path, _statement(range(1, 9), per_month))
+    assert fc["one_offs_excluded_from_training"] is False
+    assert fc["one_offs"]["count"] == 0
+
+
+def test_single_huge_charge_is_excluded_and_improves_accuracy(tmp_path):
+    """The case this exists for: one large one-off drags the trend up and the
+    model then predicts another one."""
+    per_month = [(f"MERCHANT {i}", 500 + i * 31) for i in range(1, 26)]
+    text = _statement(range(1, 9), per_month, extra=[("2025-05-14", "ONE OFF LAPTOP", -85000)])
+    fc = _forecast_for(tmp_path, text)
+    assert fc["one_offs_excluded_from_training"] is True, fc["one_offs"]
+    assert fc["one_offs"]["count"] == 1
+    assert "LAPTOP" in fc["one_offs"]["charges"][0]["description"]
+    # The rejected candidate is published beside the chosen one, and is worse.
+    assert fc["accuracy"]["mae"] < fc["accuracy_alternative"]["mae"]
+
+
+def test_charted_history_still_shows_the_one_off(tmp_path):
+    """Excluded from what the model LEARNS, never removed from what is shown."""
+    per_month = [(f"MERCHANT {i}", 500 + i * 31) for i in range(1, 26)]
+    text = _statement(range(1, 9), per_month, extra=[("2025-05-14", "ONE OFF LAPTOP", -85000)])
+    fc = _forecast_for(tmp_path, text)
+    may = next(m for m in fc["monthly"]["history"] if m["month"] == "2025-05")
+    other = next(m for m in fc["monthly"]["history"] if m["month"] == "2025-04")
+    assert may["spend"] > other["spend"] + 80000, "the spike was scrubbed from the chart"

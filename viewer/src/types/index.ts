@@ -74,6 +74,12 @@ export interface DailyPoint {
   spend: number;
 }
 
+export interface OneOffCharge {
+  date: string;
+  description: string;
+  amount: number;
+}
+
 export interface ForecastResponse {
   success: boolean;
   method: string;
@@ -83,7 +89,11 @@ export interface ForecastResponse {
   monthly: { history: MonthlyPoint[]; forecast: MonthlyPoint[] };
   next_30_day_total: number;
   next_month_total: number;
+  totals_basis?: string;
+  one_offs?: { count: number; total: number; charges: OneOffCharge[] };
+  one_offs_excluded_from_training?: boolean;
   accuracy: ForecastAccuracy | null;
+  accuracy_alternative?: ForecastAccuracy | null;
   daily_accuracy: ForecastAccuracy | null;
   message: string;
   error?: string;
