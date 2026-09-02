@@ -15,6 +15,15 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **🌐 Live demo:** [expenseeye.pages.dev](https://expenseeye.pages.dev) (frontend) · API at `https://smartspend-v975.onrender.com`
+>
+> No bank statement to hand? **"Try a sample statement"** on the landing page loads
+> [`viewer/public/sample-statement.csv`](viewer/public/sample-statement.csv) and analyses it in one click —
+> 8 months, 533 transactions, entirely synthetic. It is shaped like a real Indian bank
+> export (banner preamble, `DD/MM/YY`, split Withdrawal/Deposit columns, trailing footer)
+> so loading it exercises the auto-mapper, and it contains one genuinely missing
+> subscription charge and one large one-off purchase so the exception list and the
+> forecast's one-off handling have real work to show. Regenerate with
+> `python scripts/make_sample_statement.py`.
 > _First request after idle can take up to ~60s while the free-tier backend wakes from sleep; the app shows a waking state and waits it out._
 
 ## Overview

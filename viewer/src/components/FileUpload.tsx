@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 // Phosphor Light to match the landing surface; weight is inherited from the
 // IconContext provider in App's <Landing>, which wraps this component.
-import { UploadSimple, FileText, X, CheckCircle } from '@phosphor-icons/react';
+import { UploadSimple, FileText, X, CheckCircle, Flask } from '@phosphor-icons/react';
 import axios from 'axios';
 import api from '@/lib/api';
 import type { UploadResponse } from '@/types';
@@ -44,11 +44,14 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
   const uploadAbortRef = useRef<AbortController | null>(null);
   useEffect(() => { return () => { uploadAbortRef.current?.abort(); }; }, []);
 
-  const handleUpload = async () => {
-    if (!file) return;
+  // Takes an explicit file so the sample can be uploaded in the same tick it is
+  // fetched -- waiting for setFile to land would need an effect and a flag.
+  const handleUpload = async (override?: File) => {
+    const target = override ?? file;
+    if (!target) return;
     setIsUploading(true); setError(null); setSlowWake(false);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', target);
     const controller = new AbortController();
     uploadAbortRef.current = controller;
     // After ~8s an idle Render instance is almost certainly cold-starting, so
@@ -63,6 +66,27 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
       const apiError = axios.isAxiosError(err) ? err.response?.data?.error : undefined;
       setError(apiError || "Couldn't reach the parser — it may still be waking up. Please try again in a moment.");
     } finally { window.clearTimeout(wakeTimer); setIsUploading(false); setSlowWake(false); }
+  };
+
+  // Without this there is no way to see the product at all unless you happen to
+  // have a bank-statement CSV to hand -- and few people will upload a real one
+  // to a demo. The file is synthetic and shaped like a real bank export, so
+  // loading it also exercises the auto-mapper rather than a tidy 3-column file.
+  const [loadingSample, setLoadingSample] = useState(false);
+
+  const loadSample = async () => {
+    setLoadingSample(true); setError(null); setMappingInfo(null);
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}sample-statement.csv`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const sample = new File([await res.blob()], 'sample-statement.csv', { type: 'text/csv' });
+      setFile(sample);
+      await handleUpload(sample);
+    } catch {
+      setError("Couldn't load the sample statement. Please try again, or upload your own CSV export.");
+    } finally {
+      setLoadingSample(false);
+    }
   };
 
   const clearFile = () => {
@@ -125,12 +149,42 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                 <p className="text-base font-medium text-txt">Drop your bank statement</p>
                 <p className="mt-1 text-sm text-txt-muted">or browse for a .csv export</p>
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-line-strong bg-tint-2 px-5 py-2.5 text-sm font-medium text-txt-muted transition-colors duration-200 hover:border-brand hover:bg-brand hover:text-[color:var(--on-brand)] active:translate-y-px cursor-pointer"
-              >
-                Select file
-              </button>
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loadingSample}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-line-strong bg-tint-2 px-5 py-2.5 text-sm font-medium text-txt-muted transition-colors duration-200 hover:border-brand hover:bg-brand hover:text-[color:var(--on-brand)] active:translate-y-px cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Select file
+                </button>
+
+                {/* Secondary by design: someone with their own statement should
+                    reach for the primary action, but nobody should hit a dead
+                    end just because they have no CSV to hand. */}
+                <button
+                  onClick={loadSample}
+                  disabled={loadingSample || isUploading}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-txt-muted underline-offset-4 transition-colors duration-200 hover:text-brand hover:underline active:translate-y-px cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loadingSample ? (
+                    <>
+                      <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Loading sample…
+                    </>
+                  ) : (
+                    <>
+                      <Flask className="h-4 w-4" aria-hidden="true" />
+                      Try a sample statement
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="font-mono text-micro text-txt-faint">
+                Sample is synthetic — 8 months, 533 transactions. No real account.
+              </p>
             </div>
           ) : (
             <div className="flex flex-col items-start gap-5">
@@ -149,7 +203,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <button onClick={handleUpload} disabled={isUploading} className="btn-primary w-full sm:w-auto">
+              <button onClick={() => handleUpload()} disabled={isUploading} className="btn-primary w-full sm:w-auto">
                 {isUploading ? (
                   <>
                     <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
