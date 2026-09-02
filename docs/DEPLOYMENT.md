@@ -92,6 +92,19 @@ processing would be killed mid-request and reach the user as a 502.
 > gunicorn does not run on Windows (it needs `fcntl`), which is why local
 > development keeps using `python api/app.py`.
 
+> **Pin the interpreter, not just the libraries.** Render's default Python moved
+> to 3.14; `render.yaml` sets `PYTHON_VERSION`, but Render only reads that file
+> for **Blueprint-created** services, so a dashboard-created service ignores it
+> and had been running 3.14 unnoticed. Pinned libraries then failed to build at
+> all -- pandas 2.1.3 publishes no 3.14 wheels, so pip compiled from source and
+> the Cython build died at `metadata-generation-failed`. The `.python-version`
+> file in the repo root is read either way and is what fixes it.
+>
+> Note that even a fully pinned stack does not make the back-tested forecast
+> accuracy identical across operating systems -- see the reproducibility note in
+> the README. Pinning removes version drift, not platform floating-point
+> differences.
+
 5. **Set environment variables:**
    - Click "Advanced"
    - Add environment variables:

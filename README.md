@@ -468,14 +468,30 @@ sum of an independent *daily* model while `next_month_total` came from the
 contradicted each other on screen (₹1,02,366 beside ₹69,594 — a 47% gap). The
 30-day figure is now the month forecast scaled by `30 / days-in-month`.
 
-> **Reproducing these figures.** Every dependency is pinned in
-> `requirements.txt`, and that is load-bearing rather than tidiness: Holt-Winters
-> fits by numerical optimisation, so the reported accuracy depends on the
-> scipy/numpy build underneath it. With numpy and pandas unpinned, production and
-> local ran different stacks and reported **14.6% against 17.9% MAPE for the same
-> statement**. A number that changes with the host is not a measurement. Install
-> with `pip install -r requirements.txt -r requirements-dev.txt` on Python 3.11.9
-> to reproduce exactly what is quoted below.
+> **Reproducing these figures — and the limit of that.**
+>
+> Every dependency and the interpreter are pinned (`requirements.txt`,
+> `.python-version`), which is load-bearing rather than tidiness. Production had
+> been silently running a different Python from the one `render.yaml` claimed,
+> with numpy and pandas unpinned entirely.
+>
+> That was worth fixing, but it did **not** make the back-tested MAPE identical
+> everywhere, and the honest thing is to say why. Holt-Winters fits by iterative
+> numerical optimisation. Once the same statement, the same library versions and
+> the same Python still disagree, what is left is the platform: Linux and Windows
+> use different C math libraries and different SIMD paths, so results differ in
+> the last bits, and an optimiser compounds those bits into a different local
+> optimum. On the demo statement the same code scores **14.6% on Linux and 17.9%
+> on Windows** — deterministic on each, not equal across them.
+>
+> So a MAPE quoted to two decimals is more precise than the method supports
+> across platforms. **The live demo is the reference**: open
+> [expenseeye.pages.dev](https://expenseeye.pages.dev), click *Try a sample
+> statement*, and read the number off the screen — that is the figure anyone can
+> reproduce by clicking, and it is what the numbers below are measured against.
+> To reproduce locally, install with
+> `pip install -r requirements.txt -r requirements-dev.txt` on Python 3.11.9;
+> expect exact agreement on Linux and a few points of drift on Windows.
 
 **Accuracy — reported on two datasets, each labelled (these metrics are dataset-dependent):**
 - **Synthetic sample** (`data/sample_statement.csv`): monthly rolling one-step-ahead
