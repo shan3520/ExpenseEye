@@ -15,8 +15,17 @@ services:
     region: oregon
     branch: main
     buildCommand: pip install -r requirements.txt
-    # The app reads $PORT (injected by Render) and binds to it.
-    startCommand: python api/app.py
+    # gunicorn, not `python api/app.py`: Werkzeug's built-in server is a
+    # development server and prints so on boot. Sizing is measured, not
+    # guessed -- a warmed worker holds ~168 MB (pandas + statsmodels +
+    # scikit-learn) against the free plan's 512 MB, on 0.1 CPU. A second
+    # worker would double memory while contending for the same CPU slice, so
+    # concurrency comes from threads instead.
+    #
+    # --timeout 120 matters: the default is 30s, and /forecast alone measured
+    # 17s on 25k rows here. A large upload plus processing would exceed 30s and
+    # gunicorn would kill the worker mid-request, surfacing as a 502.
+    startCommand: gunicorn api.app:app --workers 1 --threads 4 --worker-class gthread --timeout 120 --graceful-timeout 30 --bind 0.0.0.0:$PORT --access-logfile -
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION

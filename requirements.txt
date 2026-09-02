@@ -1,5 +1,10 @@
 flask
 flask-cors
+# WSGI server for deployment. Werkzeug's built-in server is a development
+# server and says so on boot; gunicorn adds request timeouts, worker
+# supervision and graceful restarts. Linux/macOS only -- it cannot run on
+# Windows, so local development still uses `python api/app.py`.
+gunicorn==26.2.0
 pandas
 numpy
 # ML / time-series stack for forecasting, categorization and anomaly detection.

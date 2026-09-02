@@ -112,8 +112,25 @@ npm run dev
 2. **Connect your GitHub repository**
 3. **Configure the service:**
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `python api/app.py` (the app binds to `$PORT`)
+   - **Start Command:**
+     ```
+     gunicorn api.app:app --workers 1 --threads 4 --worker-class gthread --timeout 120 --graceful-timeout 30 --bind 0.0.0.0:$PORT --access-logfile -
+     ```
    - **Environment:** Python 3.11+
+
+   > `python api/app.py` still works and is what local development uses, but it
+   > runs Werkzeug's **development** server, which says so on boot. gunicorn adds
+   > request timeouts, worker supervision and graceful restarts.
+   >
+   > **Sizing is measured, not guessed.** A warmed worker holds ~168 MB (pandas +
+   > statsmodels + scikit-learn) against the free plan's 512 MB on 0.1 CPU, so a
+   > second worker would double memory while contending for the same CPU slice —
+   > concurrency comes from threads instead. `--timeout 120` is not padding: the
+   > default is 30s and `/forecast` alone measured 17s on a 25k-row statement, so
+   > a large upload would be killed mid-request and surface as a 502.
+   >
+   > gunicorn does not run on Windows (it needs `fcntl`), which is why local
+   > development keeps using `python api/app.py`.
 4. **Set environment variable** `CORS_ORIGINS` to your frontend origin, e.g.
    `https://expenseeye.pages.dev` (comma-separated for multiple).
 

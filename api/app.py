@@ -605,6 +605,14 @@ def delete_session(session_id):
     return ('', 204)
 
 
+# Sweep session files left behind by a previous process. This runs at IMPORT,
+# not under `__main__`, because under a WSGI server (gunicorn) the __main__
+# block never executes and the startup sweep would silently stop happening.
+# The per-request reaper would eventually catch stale files, but only once
+# traffic arrives -- an idle instance would sit on them indefinitely.
+_reap_sessions(force=True)
+
+
 if __name__ == '__main__':
     print("Starting ExpenseEye API...")
     print("Available endpoints:")
@@ -617,8 +625,6 @@ if __name__ == '__main__':
     print("  GET  /anomalies       (X-Session-Id header)")
     print("  GET  /reconcile       (X-Session-Id header)")
     print("  GET  /model-card")
-    # Reap any stale session files left over from a previous run on startup.
-    _reap_sessions(force=True)
     # Bind to the port provided by the hosting platform (Render/Heroku set
     # $PORT); fall back to 5000 for local development.
     port = int(os.getenv('PORT', '5000'))
