@@ -22,3 +22,60 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+
+  # Render's own auto-deploy depends on its GitHub App delivering push events,
+  # which stopped firing for this repo. This path does not depend on it: CI
+  # POSTs to the service's Deploy Hook once the tests are green, so a deploy is
+  # both reliable and gated on a passing suite -- a broken push cannot reach
+  # production.
+  #
+  # Inert until the hook URL is stored as a repository secret:
+  #   Render  -> Settings -> Deploy -> Deploy Hook  (copy the URL)
+  #   GitHub  -> Settings -> Secrets and variables -> Actions -> New secret
+  #              name: RENDER_DEPLOY_HOOK_URL
+  # Treat that URL as a credential: anyone holding it can trigger a deploy.
+  deploy-api:
+    name: deploy api (render)
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The API only needs rebuilding when API code changes. Frontend-only
+      # commits go to Cloudflare and have nothing for Render to do. Anything
+      # unexpected falls through to "deploy" -- missing a real backend change is
+      # worse than one redundant build.
+      - name: Did anything the API serves actually change?
+        id: scope
+        run: |
+          before='${{ github.event.before }}'
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]              || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "No usable base commit - deploying to be safe."
+            exit 0
+          fi
+          if git diff --name-only "$before" "$GITHUB_SHA"              | grep -qE '^(api|core|models|data)/|^requirements\.txt$'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+            echo "Frontend-only change - Cloudflare handles it."
+          fi
+
+      - name: Trigger Render deploy
+        if: steps.scope.outputs.backend == 'true'
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL is not set - skipping deploy."
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$HOOK")
+          echo "Render deploy hook responded: $code"
+          case "$code" in
+            200|201|202) exit 0 ;;
+            *) echo "::error::Deploy hook failed with HTTP $code"; exit 1 ;;
+          esac
