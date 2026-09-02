@@ -1,15 +1,36 @@
-flask
-flask-cors
+# Every version is pinned, and that is load-bearing rather than tidiness.
+#
+# Holt-Winters fits by numerical optimisation, so the *reported forecast
+# accuracy* depends on the scipy/numpy build underneath it. With numpy and
+# pandas unpinned and scipy pinned to a version the development machine did not
+# actually have, production and local were running different numerical stacks
+# and reported different MAPE for the same statement: 14.6% live against 17.9%
+# locally. On a project whose central claim is measured, honestly-reported
+# accuracy, a number that changes with the host is not a measurement.
+#
+# These are the versions the test suite passes on and every metric quoted in
+# README.md was measured with. Reproduce that environment exactly:
+#     pip install -r requirements.txt -r requirements-dev.txt
+#
+# Python 3.11.9 (pinned in render.yaml as PYTHON_VERSION).
+
+flask==3.0.3
+flask-cors==6.0.1
+
 # WSGI server for deployment. Werkzeug's built-in server is a development
 # server and says so on boot; gunicorn adds request timeouts, worker
 # supervision and graceful restarts. Linux/macOS only -- it cannot run on
-# Windows, so local development still uses `python api/app.py`.
+# Windows, so local development still uses `python api/app.py`. Pinned to the
+# version proven on the deploy image rather than the local one, which is never
+# exercised.
 gunicorn==26.2.0
-pandas
-numpy
-# ML / time-series stack for forecasting, categorization and anomaly detection.
-# Pinned, lightweight and deploy-safe (no Prophet).
-scikit-learn==1.7.1
+
+# Numerical stack. scikit-learn is pinned to the version that TRAINED
+# models/category_clf.joblib -- loading a persisted estimator under a different
+# version is unsupported and warns at best.
+numpy==1.26.4
+pandas==2.1.3
+scipy==1.15.3
 statsmodels==0.14.6
+scikit-learn==1.7.1
 joblib==1.5.1
-scipy==1.16.1

@@ -468,6 +468,15 @@ sum of an independent *daily* model while `next_month_total` came from the
 contradicted each other on screen (₹1,02,366 beside ₹69,594 — a 47% gap). The
 30-day figure is now the month forecast scaled by `30 / days-in-month`.
 
+> **Reproducing these figures.** Every dependency is pinned in
+> `requirements.txt`, and that is load-bearing rather than tidiness: Holt-Winters
+> fits by numerical optimisation, so the reported accuracy depends on the
+> scipy/numpy build underneath it. With numpy and pandas unpinned, production and
+> local ran different stacks and reported **14.6% against 17.9% MAPE for the same
+> statement**. A number that changes with the host is not a measurement. Install
+> with `pip install -r requirements.txt -r requirements-dev.txt` on Python 3.11.9
+> to reproduce exactly what is quoted below.
+
 **Accuracy — reported on two datasets, each labelled (these metrics are dataset-dependent):**
 - **Synthetic sample** (`data/sample_statement.csv`): monthly rolling one-step-ahead
   holdout **MAE ₹3,274 · RMSE ₹3,575 · MAPE 5.21%**. Holt-Winters fits this generator
