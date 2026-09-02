@@ -487,6 +487,29 @@ contradicted each other on screen (₹1,02,366 beside ₹69,594 — a 47% gap). 
 n-grams → **LogisticRegression**, persisted to `models/category_clf.joblib` and
 loaded once at startup. Low-confidence predictions fall back to keyword rules.
 
+**Split narration.** Some exports put the transaction rail in one column
+(`UPI`/`NEFT`/`ATM`, always present) and the counterparty in another (blank for
+ATM withdrawals, interest and cheques). Taking only one stored 27% of a real
+509-row statement as `UNKNOWN` and discarded the rail — the most categorizable
+field in the file. The loader now recombines them, but **only when the chosen
+description column has gaps**, so well-formed exports are untouched. A column
+named `category`/`label`/`tag` is never folded in: appending a label would hand
+the classifier the answer and make its accuracy meaningless.
+
+**Rule matching is prefix-anchored.** Bare substring matching let `atm` fire
+inside `BATMAN` and `TREATMENT`; a boundary on both sides fixes that but breaks
+the common case, since banks truncate (`DOMINOSP`, `AMAZONPA`). A boundary on the
+left only keeps both. Merchant categories are tested before `transfers`, so
+`UPI SWIGGY` is dining while a bare `UPI <person>` is a transfer — otherwise
+~73% of an Indian statement collapses into one bucket.
+
+Cash withdrawals (`cash`) and bank charges (`fees`) have their own categories.
+Cash leaving the account is a limit of what a statement can show, not a failure
+to classify, and saying so is more useful than `uncategorized`.
+
+On a real 509-row Indian statement: **uncategorized 99.0% → 1.4%**, model
+coverage 3% → 62%, `UNKNOWN` descriptions 139 → 1.
+
 **Accuracy — reported on two datasets, each labelled:**
 - **Synthetic seed holdout** (25% stratified, 9 categories): **Accuracy 93.1% · Macro-F1
   93.1%**. This holdout shares its merchant vocabulary with training, so it largely

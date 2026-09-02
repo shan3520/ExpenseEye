@@ -20,6 +20,7 @@ models/category_clf.joblib. It is loaded lazily and cached at module level, so
 it is never retrained or reloaded per request.
 """
 
+import re
 import json
 import os
 import sqlite3
@@ -45,7 +46,7 @@ _model_lock = threading.Lock()
 # because it would swallow JIOMART (groceries) and JIOHOTSTAR (subscriptions).
 _RULES = {
     "income": ["salary", "payroll", "dividend", "interest credit", "freelance",
-               "consulting", "stipend"],
+               "consulting", "stipend", "sbint", "int cr", "interest paid"],
     "rent": ["rent", "landlord", "accommodation", "maintenance charge", "society charge"],
     "subscriptions": ["netflix", "spotify", "prime", "disney", "youtube", "icloud",
                       "adobe", "hotstar", "jiohotstar", "jiocinema", "sonyliv", "zee5",
@@ -54,7 +55,8 @@ _RULES = {
                   "internet", "fibernet", "jio fiber", "jiofiber", "act fibernet",
                   "airtel", "vodafone", "bescom", "tata power", "adani electricity",
                   "mahanagar gas", "comcast", "xfinity", "at&t", "wireless",
-                  "postpaid", "utility"],
+                  "postpaid", "utility", "jioinapp", "prepaid recharge",
+                  "mobile recharge", "dth"],
     "transport": ["uber", "ola", "rapido", "namma yatri", "nammayatri", "indrive",
                   "lyft", "fuel", "petrol", "diesel", "metro", "irctc", "redbus",
                   "bmtc", "bus pass", "indigo", "spicejet", "vistara", "akasa",
@@ -70,15 +72,50 @@ _RULES = {
                  "reliance digital", "urban company", "best buy", "target", "ikea",
                  "nike", "h&m", "zara", "decathlon", "croma", "apple store", "ebay"],
     "transfers": ["upi", "neft", "imps", "rtgs", "paytm", "phonepe", "gpay", "venmo",
-                  "zelle", "transfer", "google pay"],
+                  "zelle", "transfer", "google pay", "cheque", "chq", "ecs", "nach",
+                  "funds transfer"],
+    # Cash leaves the account and the statement stops being able to see it. That
+    # is worth saying plainly rather than filing under "uncategorized", which
+    # reads as a failure to classify rather than a limit of the data.
+    "cash": ["atm", "cash withdrawal", "cash wdl", "cash dep"],
+    "fees": ["sms charges", "debit card annual", "stock chrg", "annual fee",
+             "service charge", "penalty", "late fee", "amc", "processing fee",
+             "convenience fee", "gst on", "chrg"],
 }
 
 
+def _compile(keywords):
+    """Prefix-anchored patterns: a word boundary on the LEFT only.
+
+    Bare substring matching let "atm" fire inside "BATMAN" and "TREATMENT". A
+    boundary on BOTH sides fixes that but breaks the far more common case, since
+    banks truncate merchant names -- "DOMINOSP", "AMAZONPA", "FLIPKART" -- and a
+    trailing boundary refuses to match any of them.
+
+    Anchoring the start only keeps both properties: "domino" matches
+    "DOMINOSP", while "atm" cannot match "BATMAN", where "atm" is preceded by
+    a word character. The boundary is omitted when a keyword does not begin with
+    a word character, so "h&m" and "at&t" still match."""
+    parts = []
+    for kw in keywords:
+        esc = re.escape(kw)
+        left = r"\b" if kw[:1].isalnum() else ""
+        parts.append(left + esc)
+    return re.compile("|".join(parts), re.IGNORECASE)
+
+
+_RULE_PATTERNS = {cat: _compile(kws) for cat, kws in _RULES.items()}
+
+
 def _rule_category(description):
-    """Best-effort keyword match. Returns a category or 'uncategorized'."""
-    text = str(description).lower()
-    for category, keywords in _RULES.items():
-        if any(kw in text for kw in keywords):
+    """Best-effort keyword match. Returns a category or 'uncategorized'.
+
+    Order matters and is the order of _RULES: merchant categories are tested
+    before "transfers", so "UPI SWIGGY" is dining rather than a transfer, while
+    a bare "UPI <person>" falls through to transfers."""
+    text = str(description)
+    for category, pattern in _RULE_PATTERNS.items():
+        if pattern.search(text):
             return category
     return "uncategorized"
 

@@ -87,6 +87,65 @@ def detect_date_column(columns):
     raise ValueError(f"Could not identify date column. Your CSV has: [{available_cols}]. Expected one of: date, transaction_date, txn_date, posting_date, value_date.")
 
 
+# A description column this sparse is not the whole story: some exports split
+# the narration across a rail column ("UPI"/"NEFT"/"ATM", always present) and a
+# counterparty column (blank for ATM withdrawals, bank interest, cheques).
+# Taking only one of them threw away the rail and stored 27% of a real statement
+# as "UNKNOWN".
+_DESC_SPARSE_FILL = 0.95
+# Never fold a label column into the description: appending a "Category" column
+# would hand the classifier the answer and make its accuracy meaningless.
+_LABEL_COLUMNS = {"category", "subcategory", "tag", "label", "class", "type"}
+
+
+def _text_score(series):
+    """Fraction of non-empty values that look like free text, not numbers."""
+    series = series.dropna()
+    if len(series) == 0:
+        return 0.0
+    hits = 0
+    for val in series:
+        s = str(val).strip()
+        if s and coerce_amount(s) is None and re.search(r'[A-Za-z]{2,}', s):
+            hits += 1
+    return hits / len(series)
+
+
+def _fill_rate(df, col):
+    return float(df[col].apply(lambda v: str(v).strip() != "" and pd.notna(v)).mean())
+
+
+def find_description_parts(columns, df, primary, exclude=None):
+    """
+    Columns to concatenate into one description, in file order.
+
+    Returns just [primary] unless primary has real gaps AND another free-text
+    column is more complete -- the split-narration case above. Gating on
+    sparsity keeps well-formed exports untouched.
+    """
+    if primary is None or df is None or len(df) == 0:
+        return [primary] if primary else []
+
+    primary_fill = _fill_rate(df, primary)
+    if primary_fill >= _DESC_SPARSE_FILL:
+        return [primary]
+
+    exclude = set(exclude or [])
+    extra = [
+        col for col in columns
+        if col != primary
+        and col not in exclude
+        and normalize_column_name(col) not in _LABEL_COLUMNS
+        and _text_score(df[col]) >= 0.6
+        and _fill_rate(df, col) > primary_fill
+    ]
+    if not extra:
+        return [primary]
+
+    parts = [c for c in columns if c == primary or c in extra]
+    return parts
+
+
 def detect_description_column(columns, df=None, exclude=None):
     """
     Detect the description column.
@@ -114,18 +173,9 @@ def detect_description_column(columns, df=None, exclude=None):
         for col in columns:
             if col in exclude:
                 continue
-            series = df[col].dropna()
-            if len(series) == 0:
+            if len(df[col].dropna()) == 0:
                 continue  # all-empty column (e.g. blank "Unnamed") -> skip
-            text_hits = 0
-            for val in series:
-                s = str(val).strip()
-                if s == '':
-                    continue
-                # "Text" = not parseable as a number and contains a letter.
-                if coerce_amount(s) is None and re.search(r'[A-Za-z]{2,}', s):
-                    text_hits += 1
-            score = text_hits / len(series)
+            score = _text_score(df[col])
             # Require a clear majority of text values, and prefer the richest.
             if score >= 0.6 and score > best_score:
                 best_col, best_score = col, score
@@ -541,6 +591,15 @@ def load_csv_to_db(csv_path, db_path):
     desc_col = detect_description_column(
         df.columns, df=df, exclude=[date_col, *_amount_cols]
     )
+
+    # Some exports split the narration across a rail column ("UPI"/"NEFT"/"ATM")
+    # and a counterparty column that is blank for ATM withdrawals, interest and
+    # cheques. Taking only one stored 27% of a real statement as "UNKNOWN" and
+    # discarded the rail entirely -- the single most categorizable field in the
+    # file. See find_description_parts for why this only triggers on gaps.
+    desc_parts = find_description_parts(
+        df.columns, df, desc_col, exclude=[date_col, *_amount_cols]
+    )
     
     # Auto-detect date format (ISO-8601 year-first, day-first, or month-first).
     date_order = detect_date_format(df, date_col)
@@ -634,12 +693,13 @@ def load_csv_to_db(csv_path, db_path):
                     continue
 
                 # Get description (use placeholder if column doesn't exist)
-                if desc_col:
-                    description = row[desc_col]
-                    if pd.isna(description):
-                        description = 'UNKNOWN'
-                    else:
-                        description = str(description).strip()
+                if desc_parts:
+                    pieces = []
+                    for part_col in desc_parts:
+                        val = row[part_col]
+                        if pd.notna(val) and str(val).strip():
+                            pieces.append(str(val).strip())
+                    description = ' '.join(pieces) if pieces else 'UNKNOWN'
                 else:
                     description = 'TRANSACTION'
 
@@ -680,7 +740,10 @@ def load_csv_to_db(csv_path, db_path):
         mapping_info = {
             'date_column': date_col,
             'date_format': date_format_type,
-            'description_column': desc_col if desc_col else 'None (using TRANSACTION placeholder)',
+            'description_column': (
+                ' + '.join(desc_parts) if desc_parts
+                else 'None (using TRANSACTION placeholder)'
+            ),
             'amount_pattern': pattern_desc,
             'rows_skipped': rows_skipped,
             # Structured exception list (capped at 100) so consumers can show

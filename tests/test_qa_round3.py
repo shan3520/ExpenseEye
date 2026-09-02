@@ -410,3 +410,101 @@ def test_first_time_merchant_cannot_excuse_itself(tmp_path):
     )
     assert any(abs(a["spend"] - 78999) < 1 for a in res["anomalies"]), \
         [a["description"] for a in res["anomalies"]]
+
+
+# ----- split narration across two columns ---------------------------------- #
+# Shape taken from a real export (synthetic contents): the narration lives in a
+# RAIL column that is always present and a COUNTERPARTY column that is blank for
+# ATM withdrawals, interest and cheques.
+
+SPLIT = (
+    "date,DrCr,amount,balance,mode,name\n"
+    "2025-01-02,Db,930.0,462362.87,UPI,MERCHANTONE\n"
+    "2025-01-03,Db,10000.0,452362.87,ATM,\n"
+    "2025-01-05,Cr,52521.0,504883.87,NEFT,\n"
+    "2025-01-07,Db,275.0,504608.87,UPI,MERCHANTTWO\n"
+    "2025-01-09,Db,18.0,504590.87,SMS CHARGES,\n"
+    "2025-01-11,Db,200000.0,304590.87,CHEQUE,\n"
+    "2025-01-13,Db,563.0,304027.87,UPI,FLIPKART\n"
+    "2025-01-15,Cr,7.09,304034.96,ECS,\n"
+)
+
+
+def test_split_narration_is_recombined(load_csv):
+    """Taking only the counterparty column stored every ATM, NEFT, cheque and
+    charge row as "UNKNOWN" -- 27% of a real statement -- and threw away the
+    rail, which is the most categorizable field in the file."""
+    n, info, rows = load_csv(SPLIT)
+    assert info["description_column"] == "mode + name"
+    descriptions = [r[1] for r in rows]
+    assert "UNKNOWN" not in descriptions, descriptions
+    assert "UPI MERCHANTONE" in descriptions
+    assert "ATM" in descriptions
+    assert "CHEQUE" in descriptions
+
+
+def test_complete_description_column_is_left_alone(load_csv):
+    """The recombination is gated on GAPS. A well-formed export must be
+    untouched, or every description would grow noise columns."""
+    text = (
+        "Date,Description,Amount\n"
+        "2025-01-02,NETFLIX STREAMING,-649\n"
+        "2025-01-03,SWIGGY ORDER,-320\n"
+        "2025-01-04,BIGBASKET DAILY,-1450\n"
+    )
+    n, info, rows = load_csv(text)
+    assert info["description_column"] == "Description"
+    assert [r[1] for r in rows] == ["NETFLIX STREAMING", "SWIGGY ORDER", "BIGBASKET DAILY"]
+
+
+def test_a_category_column_is_never_folded_into_the_description(load_csv):
+    """Appending a label column would hand the classifier the answer and make
+    its reported accuracy meaningless."""
+    text = (
+        "Date,Description,Amount,Category\n"
+        "2025-01-02,NETFLIX STREAMING,-649,Entertainment\n"
+        "2025-01-03,,-320,Dining\n"          # a gap, so the rule is live
+        "2025-01-04,BIGBASKET DAILY,-1450,Groceries\n"
+    )
+    n, info, rows = load_csv(text)
+    assert "Category" not in info["description_column"]
+    assert not any("Entertainment" in r[1] for r in rows), [r[1] for r in rows]
+
+
+# ----- rule matching is prefix-anchored ------------------------------------ #
+
+def test_rules_match_truncated_merchant_names():
+    """Banks truncate: DOMINOSP, AMAZONPA. A trailing word boundary would
+    refuse all of them."""
+    from core.categorizer import _rule_category
+    assert _rule_category("UPI DOMINOSP") == "dining"
+    assert _rule_category("UPI AMAZONPA") == "shopping"
+    assert _rule_category("UPI FLIPKART") == "shopping"
+
+
+def test_rules_do_not_match_mid_word():
+    """Bare substring matching let "atm" fire inside "BATMAN" and "TREATMENT"."""
+    from core.categorizer import _rule_category
+    assert _rule_category("BATMAN COLLECTIBLES") != "cash"
+    assert _rule_category("TREATMENT CENTRE") != "cash"
+    assert _rule_category("ATM WDL") == "cash"
+
+
+def test_merchant_categories_beat_the_transfer_rail():
+    """Every UPI row contains "upi"; the merchant must still win, or 73% of an
+    Indian statement collapses into "transfers"."""
+    from core.categorizer import _rule_category
+    assert _rule_category("UPI SWIGGY ORDER") == "dining"
+    assert _rule_category("UPI-NETFLIX-NETFLIX@YBL") == "subscriptions"
+    assert _rule_category("UPI SOMEPERSONNAME") == "transfers"
+
+
+def test_banking_rails_have_honest_categories():
+    """Cash leaving the account, and bank charges, are knowable -- filing them
+    under "uncategorized" reads as a failure to classify rather than a limit of
+    the data."""
+    from core.categorizer import _rule_category
+    assert _rule_category("ATM") == "cash"
+    assert _rule_category("CHEQUE") == "transfers"
+    assert _rule_category("SMS CHARGES") == "fees"
+    assert _rule_category("DEBIT CARD ANNUAL") == "fees"
