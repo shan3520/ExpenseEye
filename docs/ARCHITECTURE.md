@@ -2,7 +2,21 @@
 
 ## System Overview
 
-ExpenseEye follows a **three-tier architecture** with clear separation of concerns:
+ExpenseEye follows a **three-tier architecture** with clear separation of concerns.
+
+`core/` holds six read-out modules. Five analyse the statement independently;
+**`reconcile.py` closes the loop over them** — it consumes the recurring series
+found by `subscriptions.py`, projects when each charge should have landed, and
+matches that expected ledger against what the statement actually contains. That
+is what turns a set of read-outs into a finance-ops loop with a measurable match
+rate and an exception list.
+
+Dependencies flow one way (`api` → `core` → SQLite); no core module imports the
+API, and modules that must agree share one implementation rather than
+duplicating logic — `anomaly.py` categorizes through `categorizer.py`, and both
+`reconcile.py` and `forecast.py` read recurring series from `subscriptions.py`.
+Two independent copies of "what category is this?" had already drifted far
+enough to label the same charge differently in two cards on the same screen.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -35,14 +49,20 @@ ExpenseEye follows a **three-tier architecture** with clear separation of concer
 │  │ forecast.py  │  │categorizer.py│  │  anomaly.py  │     │
 │  │ Holt-Winters │  │ TF-IDF + LR  │  │ Robust       │     │
 │  │ forecast (ML)│  │ classifier(ML)│  │ z-score (ML) │     │
-│  └──────────────┘  └──────┬───────┘  └──────────────┘     │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
+│         │                 │                 │              │
+│  ┌──────▼───────────────────────────────────▼───────┐     │
+│  │                  reconcile.py                     │     │
+│  │  Expected recurring ledger vs actual charges:     │     │
+│  │  match rate + two-sided exception list            │     │
+│  └───────────────────────────────────────────────────┘     │
 │                    models/category_clf.joblib (loaded once)│
 └────────────────────┬────────────────────────────────────────┘
                      │
                      │
 ┌────────────────────▼────────────────────────────────────────┐
 │                 SQLite Database (Ephemeral)                 │
-│                   /tmp/ExpenseEye_{uuid}.db                 │
+│              <tempdir>/expenseeye_{uuid}.db                 │
 │  - transactions table                                       │
 │  - Session-scoped                                           │
 │  - Auto-cleanup                                             │
@@ -299,7 +319,50 @@ For each spend category:
   flag transactions with z >= 3.5, with a human-readable explanation
 ```
 
-**Libraries:** `numpy`, `pandas` (categories come from the categorizer model).
+Two exclusions from **candidacy** (both stay in the population, because removing
+them would distort the statistics used to judge everything else):
+
+- **Detected subscriptions** — a predictable monthly charge is a subscription,
+  not an unexplained outlier.
+- **Charges that are routine for their own merchant** — a category is a coarse
+  bucket, so petrol scores a huge `transport` z-score on *every* fill. Requires
+  ≥4 sightings of that merchant, so a first-time merchant cannot excuse itself.
+
+**Libraries:** `numpy`, `pandas`. Categories come from `categorizer.py` via the
+shared `predict_categories()` — not a second copy of the logic, which had
+previously drifted far enough to label one charge differently in two cards.
+
+#### 3.7 Recurring Reconciliation (`core/reconcile.py`)
+
+**Purpose:** Close the loop. Everything above *describes* a statement; this
+module makes a claim and then checks it.
+
+**Approach:**
+```
+for each recurring series from subscriptions.py:
+    project expected occurrences across the OBSERVED life of the series
+      - MONTHLY/QUARTERLY step by CALENDAR month (same day-of-month),
+        not a fixed day count
+    greedy nearest-match each expected date against actual charges
+      - date tolerance : 35% of cadence, clamped to 3-10 days
+      - amount tolerance: 15% or ₹50, whichever is larger
+    anything unmatched on either side becomes an exception
+```
+
+**Output:** a match rate over every expected occurrence, plus a two-sided
+exception list — `missing` (expected but never landed) and `unscheduled` (a
+charge from a recurring merchant that no occurrence explains).
+
+**Invariant:** `matched + missing == expected_occurrences`, enforced by a test.
+Nothing is quietly dropped to make the rate look better.
+
+**Why calendar months:** a fixed day count accumulates ~half a day of error per
+cycle. Past ~20 cycles the projection drifts outside tolerance and every real
+charge is counted *both* as missing and as unscheduled — a fake match rate with
+both sides of the exception list corrupted at once. It is invisible on a
+six-month statement, which is why two QA rounds missed it.
+
+**Libraries:** `pandas`, `calendar`.
 
 ### 4. Data Layer (SQLite)
 
@@ -476,6 +539,14 @@ React frontend displays results
 
 ## Future Enhancements
 
+### Delivered (v3.0.0)
+- ✅ **Recurring reconciliation** — match rate + two-sided exception list
+- ✅ Split-narration recombination (rail column + counterparty column)
+- ✅ One-off charges excluded from forecast training, gated on a back-test
+- ✅ Merchant-level anomaly suppression (a pattern is not an anomaly)
+- ✅ One-click sample statement on the landing page
+- ✅ Session survives a page refresh; served by gunicorn; deploys from CI
+
 ### Delivered (v2.0.0)
 - ✅ Currency symbol handling (₹, $, €)
 - ✅ Thousand separator support (1,000.00) + CR/DR markers
@@ -501,12 +572,22 @@ React frontend displays results
 
 ## Testing Strategy
 
+**88 tests, run in CI on every push** (`.github/workflows/ci.yml`); a green suite
+is what gates the backend deploy.
+
+Every fix carries a regression test that states the defect it prevents, in its
+own words — the suite doubles as the record of what has actually gone wrong here.
+
 ### Unit Tests
-- CSV parser with various formats
-- Date format detection
-- Amount normalization
-- Subscription detection algorithm
+- CSV parser: delimiters, banner preambles, split narrations, abbreviations
+- Date format detection, including ISO-vs-day-first disambiguation
+- Amount normalization: European decimals, currency codes, trailing signs
+- Subscription detection: cadence, dispersion bounds, variable-spend rejection
 - Overspending calculation
+- Reconciliation: calendar-month projection, and the
+  `matched + missing == expected` invariant
+- Forecast: one-off detection, and that damping must win its back-test
+- Anomaly: merchant-level suppression, and that it is not a blanket amnesty
 
 ### Integration Tests
 - End-to-end upload flow
@@ -574,6 +655,6 @@ React frontend displays results
 
 ---
 
-**Last Updated:** 2026-06-07  
-**Version:** 2.0.0  
+**Last Updated:** 2026-09-02  
+**Version:** 3.0.0  
 **Author:** ExpenseEye Team

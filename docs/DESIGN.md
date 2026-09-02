@@ -102,8 +102,12 @@ session tape, table headers).
 
 ### Session tape (signature)
 - A slim sticky telemetry strip at the top of the console: live indicator, session
-  handle, ticking uptime, the module currently in view, and a standing
-  `LOCAL · NOTHING STORED` assurance.
+  handle, ticking uptime, the module(s) currently in view, and a standing
+  `Session-scoped · auto-deleted` assurance.
+- That wording is deliberate. It previously read `LOCAL · NOTHING STORED`, which
+  was not true of the hosted app: statements are parsed server-side. The claim
+  now matches what actually happens — session-scoped, deleted on exit, reaped on
+  a TTL — because an overclaim about privacy is worse than a modest true one.
 - Cells: `flex items-center gap-2 whitespace-nowrap px-3.5 font-mono text-micro uppercase tracking-wider`, hairline-separated (`border-l border-line`).
 - Sticky on desktop (`lg:sticky lg:top-0`); scrolls away on mobile to clear the mobile top bar.
 
@@ -113,6 +117,28 @@ session tape, table headers).
 
 ### Module rail
 - Base: `.module-rail` — a short phosphor tick before each module header.
+
+### Module nav — three highlight tiers
+The bento grid is two-across at `lg`, so two module cards share a row and a
+single scroll position genuinely identifies **two** modules, not one. The nav
+therefore has three states rather than two:
+
+| tier | meaning | treatment |
+|---|---|---|
+| **primary** | the module you selected | accent bar, brand fill, semibold |
+| **companion** | its row-mate, on screen but not chosen | faint brand tint, no bar, normal weight |
+| inactive | everything else | muted |
+
+Rows are measured from the DOM, not derived from the column spans, so the same
+code is correct at both breakpoints (below `lg` nothing pairs, and no companion
+appears). `aria-current` stays on the primary alone, so assistive tech gets one
+unambiguous answer.
+
+Two earlier attempts each tried to name ONE module from that position and each
+made a different card unreachable — first the taller of the pair, then the
+second-in-order. Both were heuristics over card heights, and those are
+data-dependent: two of the cards measured 475px and 469px, six pixels apart. The
+fix was to stop guessing and let the nav say what is actually true.
 
 ### KPI label / value
 - Label: `font-mono text-micro font-medium uppercase tracking-wider text-txt-muted` (instrument legend)
@@ -252,4 +278,4 @@ state change), never decorative.
 - Every interactive component carries states: default, hover, focus, active, disabled, loading, error.
 - Loading: skeletons preferred in content; spinners only for module/page loads.
 - Empty states: educational — name what's missing and the next step.
-- Affordances: consistent button shapes, form-control vocabulary, and icon style (Lucide, light strokes).
+- Affordances: consistent button shapes, form-control vocabulary, and icon style (**Phosphor**, light weight, set once via `IconContext` rather than threaded per icon).

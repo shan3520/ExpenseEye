@@ -34,6 +34,7 @@ git push origin main
 ```txt
 flask
 flask-cors
+gunicorn==26.2.0
 pandas
 numpy
 scikit-learn==1.7.1
@@ -67,7 +68,29 @@ scipy==1.16.1
 | Root Directory | (leave empty) |
 | Runtime | `Python 3` |
 | Build Command | `pip install -r requirements.txt` |
-| Start Command | `python api/app.py` |
+| Start Command | see below |
+
+**Start Command:**
+
+```
+gunicorn api.app:app --workers 1 --threads 4 --worker-class gthread --timeout 120 --graceful-timeout 30 --bind 0.0.0.0:$PORT --access-logfile -
+```
+
+`python api/app.py` also works and is what local development uses, but it runs
+Werkzeug's **development** server, which says so on boot. gunicorn adds request
+timeouts, worker supervision and graceful restarts.
+
+**The sizing is measured, not guessed.** A warmed worker holds ~168 MB (pandas +
+statsmodels + scikit-learn) against the free plan's 512 MB on 0.1 CPU, so a
+second worker would double memory while contending for the same CPU slice —
+concurrency comes from threads instead.
+
+`--timeout 120` is load-bearing, not padding: gunicorn defaults to **30s** and
+`/forecast` alone measured **17s** on a 25k-row statement, so a large upload plus
+processing would be killed mid-request and reach the user as a 502.
+
+> gunicorn does not run on Windows (it needs `fcntl`), which is why local
+> development keeps using `python api/app.py`.
 
 5. **Set environment variables:**
    - Click "Advanced"
@@ -86,15 +109,21 @@ scipy==1.16.1
 
 1. **Wait for build to complete** (2-3 minutes)
 
-2. **Check logs** for:
+2. **Check logs** for gunicorn booting its worker:
 ```
-Starting ExpenseEye API...
-Available endpoints:
-  GET  /health
-  POST /upload
-  ...
-Listening on http://0.0.0.0:5000
+[INFO] Starting gunicorn 26.2.0
+[INFO] Listening at: http://0.0.0.0:10000
+[INFO] Using worker: gthread
+[INFO] Booting worker with pid: ...
 ```
+
+You should **not** see Werkzeug's "This is a development server" warning. If you
+do, the Start Command is still `python api/app.py`.
+
+> `bash: line 1: gunicorn: command not found` (exit status 127) means the build
+> predates `gunicorn` being added to `requirements.txt`. Push the requirements
+> change first, let that build succeed, then change the Start Command —
+> otherwise Render tries to run a binary the image does not have.
 
 3. **Test health endpoint:**
 ```bash
@@ -116,7 +145,11 @@ Expected response:
 >   then uses its baseline fallback).
 > - The service binds to `$PORT` (injected by Render), not a hardcoded port.
 > - Free-tier services sleep after ~15 min idle; the **first request wakes them
->   and takes ~10-15s** (within the frontend's 30s request timeout).
+>   and has measured 30-55s**. The frontend's request timeout is **90s** for this
+>   reason, it fires a non-blocking `/health` warm-up on mount so the instance is
+>   likely awake by the time a statement is submitted, and the upload button
+>   switches to an honest "Waking the server" message after 8s rather than
+>   implying the analysis itself is slow.
 
 ---
 
@@ -251,13 +284,43 @@ curl https://your-api.onrender.com/health
 
 ### Update Deployment
 
-**Automatic (recommended):**
-- Push to `main` branch
-- Render and Cloudflare Pages auto-deploy
+**Automatic (recommended):** push to `main`.
+
+- **Frontend** — Cloudflare Pages builds on push via its GitHub App. Nothing to
+  configure per-push.
+- **Backend** — deployed from **CI**, not by Render's own auto-deploy. The
+  `deploy-api` job in `.github/workflows/ci.yml` POSTs the service's Deploy Hook
+  once `pytest` is green.
+
+  Why not Render's built-in auto-deploy: it depends on Render's GitHub App
+  delivering push events, and that silently stopped firing for this repo — the
+  repo has no classic webhook and no deploy key, so there was no fallback and a
+  backend commit could sit undeployed with nothing to say so. Driving it from CI
+  removes the dependency and adds a property the built-in path did not have:
+  **deploys are gated on a passing test suite**, so a broken push cannot reach
+  production.
+
+  Only backend paths trigger it — `api/`, `core/`, `models/`, `data/`,
+  `requirements.txt`. Frontend-only commits belong to Cloudflare and give Render
+  nothing to do. Anything ambiguous (no base commit, a force-push, an
+  unresolvable SHA) falls through to deploying: one redundant build costs a
+  minute, a silently missed backend change costs correctness.
+
+  **Setup (one time):** copy the URL from Render → Settings → Deploy → **Deploy
+  Hook**, and store it as the GitHub repository secret `RENDER_DEPLOY_HOOK_URL`
+  (Settings → Secrets and variables → Actions). Treat it as a credential —
+  anyone holding it can trigger a deploy. Without the secret the job logs a
+  warning and passes, so the workflow is inert until it is set.
 
 **Manual:**
 - Render: Click "Manual Deploy" → "Deploy latest commit"
 - Cloudflare Pages: Open the latest deployment → "Retry deployment"
+
+**Optional — Build Filters.** If you also leave Render's own auto-deploy on,
+set Settings → Build → **Build Filters** → Included Paths to `api/**`,
+`core/**`, `models/**`, `data/**`, `requirements.txt` so a CSS change does not
+rebuild the API. Note that paths are relative to the repo root, and ignored
+paths win over included ones.
 
 ### Rollback
 
@@ -292,10 +355,17 @@ curl https://your-api.onrender.com/health
 
 ### Database Considerations
 
-**Current:** Ephemeral SQLite in `/tmp`
+**Current:** Ephemeral SQLite in the system temp directory, one file per session
 - ✅ Perfect for session-based usage
 - ✅ No external database needed
 - ❌ Lost on service restart (expected)
+
+Session files are reaped on a TTL (`SESSION_TTL_SECONDS`, default 1800) by an
+opportunistic `before_request` hook, **and once at import time** so a restart
+sweeps whatever the previous process left behind. The import-time sweep matters
+specifically under gunicorn: a WSGI server never executes the `__main__` block,
+so a startup sweep placed there would silently stop happening and an idle
+instance would sit on stale files until traffic arrived.
 
 **Future:** For persistent storage
 - Migrate to PostgreSQL (Render add-on)
@@ -468,5 +538,5 @@ For deployment issues:
 
 ---
 
-**Last Updated:** 2026-06-02  
-**Version:** 2.0.0
+**Last Updated:** 2026-09-02  
+**Version:** 3.0.0
