@@ -118,7 +118,8 @@ Retrieve detected subscriptions for a session.
 
 **Request:**
 ```bash
-curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \n     https://your-app.onrender.com/subscriptions
+curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     https://your-app.onrender.com/subscriptions
 ```
 
 **Success Response:**
@@ -174,7 +175,8 @@ Retrieve overspending analysis for a session.
 
 **Request:**
 ```bash
-curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \n     https://your-app.onrender.com/overspending
+curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     https://your-app.onrender.com/overspending
 ```
 
 **Success Response:**
@@ -230,7 +232,8 @@ Forecast upcoming spending for a session.
 
 **Request:**
 ```bash
-curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \n     https://your-app.onrender.com/forecast
+curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     https://your-app.onrender.com/forecast
 ```
 
 **Success Response (abridged):**
