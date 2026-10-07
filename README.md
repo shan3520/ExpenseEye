@@ -589,27 +589,38 @@ expenseeye/
 ### Running Tests
 
 ```bash
-# Test CSV auto-mapper with various formats
-python test_csv_formats.py
+# Install runtime + test dependencies (pytest), then run the full suite
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -q
 
-# Diagnose a specific CSV file
-python diagnose_csv.py your_file.csv
+# Just the CSV auto-mapper tests
+pytest -q tests/test_loader_patterns.py tests/test_dates.py tests/test_amounts.py
+```
+
+The same suite runs in CI on every push (`.github/workflows/ci.yml`).
+
+To see how the loader reads a specific file, start the API and post it to
+`/preview-csv`, which returns the detected header row, columns and first rows
+without creating a session:
+
+```bash
+curl -F "file=@your_file.csv" http://localhost:5000/preview-csv
 ```
 
 ### Adding Support for New CSV Formats
 
 1. **Add column aliases** in `core/loader.py`:
    ```python
-   # In detect_date_column()
-   aliases = ['date', 'transaction_date', 'your_new_alias']
+   # In detect_date_column(). Aliases are compared after normalize_column_name(),
+   # which lowercases and drops every non-alphanumeric character, so write
+   # "Txn Posted On" as 'txnpostedon'.
+   aliases = ['date', 'transactiondate', 'txndate', 'postingdate', 'valuedate', 'yournewalias']
    ```
 
-2. **Test with sample CSV**:
-   ```bash
-   python diagnose_csv.py sample.csv
-   ```
+2. **Check it against a sample CSV** with `/preview-csv` (see above) or by uploading it.
 
-3. **Add to test suite** in `test_csv_formats.py`
+3. **Add a regression test** in `tests/test_loader_patterns.py` using the
+   `load_csv` fixture from `tests/conftest.py`, then run `pytest -q`.
 
 ## Security & Privacy
 
@@ -626,7 +637,7 @@ python diagnose_csv.py your_file.csv
 
 **Error:** "Could not identify date column"
 - **Solution:** Check if your CSV has a date column with one of the supported names
-- **Debug:** Run `python diagnose_csv.py your_file.csv` to see detected columns
+- **Debug:** POST the file to `/preview-csv` to see the header row and columns the loader detected
 
 **Error:** "No valid transactions found"
 - **Solution:** Verify your CSV has numeric values in amount columns
