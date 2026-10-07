@@ -377,8 +377,9 @@ Health check endpoint.
 4. Take day gaps between consecutive charges; cadence comes from the MEDIAN gap,
    so one skipped or early-billed month does not disqualify the series
 5. Classify as WEEKLY (6–8 days), FORTNIGHTLY (12–16), MONTHLY (25–35) or
-   QUARTERLY (84–100). Longer cadences demand more evidence: QUARTERLY needs 4
-   occurrences (a full year), MONTHLY needs 3
+   QUARTERLY (84–100). MONTHLY needs 3 occurrences; WEEKLY and FORTNIGHTLY need
+   4, and so does QUARTERLY (a full year) — three points 90 days apart is just
+   as easily three unrelated shopping trips
 6. Require regularity on BOTH a proportional and an absolute bound — gap MAD ≤
    min(40% of the median gap, 7 days). The proportional bound alone allows ±36
    days of drift on a quarterly series, which lets irregular repeat purchases
@@ -633,7 +634,7 @@ python diagnose_csv.py your_file.csv
 
 ### Analytics Not Showing
 
-**Subscriptions:** Requires minimum 3 occurrences of same amount
+**Subscriptions:** Requires at least 3 charges from the same merchant within one amount band (±15% or ₹50 of the median) for a monthly series, and 4 for weekly, fortnightly or quarterly
 **Overspending:** Requires minimum 4 months of data (3-month baseline + 1 to analyze)
 
 ## Contributing
