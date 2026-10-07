@@ -408,7 +408,8 @@ conditions together missed each of those cases.
 ### Anomaly Detection (ML)
 
 **Method:** robust per-category z-score (median + MAD), so a handful of extreme
-outliers cannot inflate the spread and mask each other.
+outliers cannot inflate the spread and mask each other. A charge scoring at or
+above **3.5** is a candidate, and every flag carries a plain-English explanation.
 
 Two things are deliberately **not** flagged:
 
@@ -550,13 +551,6 @@ coverage 3% → 62%, `UNKNOWN` descriptions 139 → 1.
   is fixed.
 
 Retrain anytime: `python scripts/generate_data.py && python scripts/train_categorizer.py`
-
-### Anomaly Detection (ML)
-
-**Method:** Robust per-category z-score using the **median + MAD** (Median
-Absolute Deviation), so a few extreme outliers don't inflate the spread.
-Transactions above a z-score of 3.5 are flagged with a plain-English
-explanation of how far above the category norm they sit.
 
 ## Development
 
