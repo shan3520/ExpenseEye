@@ -54,21 +54,29 @@ expenseeye/
 │   ├── overspending.py   # Overspending analysis (rule-based)
 │   ├── forecast.py       # Cash-flow forecast (statsmodels Holt-Winters)
 │   ├── categorizer.py    # ML transaction categorizer (TF-IDF + LogisticRegression)
-│   └── anomaly.py        # Anomaly detection (robust z-score)
+│   ├── anomaly.py        # Anomaly detection (robust z-score)
+│   └── reconcile.py      # Recurring reconciliation (expected vs actual, exceptions)
 ├── models/           # Persisted ML artifacts
 │   ├── category_clf.joblib   # Trained categorizer (loaded once at startup)
 │   └── model_card.json       # Held-out evaluation metrics
 ├── data/             # Seed + sample data (synthetic, safe to commit)
-│   ├── seed_transactions.csv # Labeled training data for the categorizer
-│   └── sample_statement.csv  # Realistic 18-month statement for demos
+│   ├── seed_transactions.csv     # Labeled training data for the categorizer
+│   ├── eval_transactions.csv     # 40 hand-labelled realistic merchants (held-out eval)
+│   ├── sample_statement.csv      # Realistic 18-month statement for demos
+│   └── sample_statement_iso.csv  # Clean ISO-dated fixture (reconciles 60/60)
 ├── scripts/          # Reproducible data generation + model training
 │   ├── generate_data.py
-│   └── train_categorizer.py
+│   ├── train_categorizer.py
+│   └── make_sample_statement.py  # Builds viewer/public/sample-statement.csv
+├── tests/            # pytest suite (run in CI)
 ├── viewer/           # React + Vite + Tailwind frontend
 │   ├── src/          # Components, API client, types
+│   ├── public/       # sample-statement.csv for "Try a sample statement"
 │   └── package.json  # Frontend dependencies
 ├── render.yaml       # Render Blueprint for the API
-└── requirements.txt  # Python dependencies
+├── .python-version   # Interpreter pin (3.11.9)
+├── requirements.txt  # Python dependencies (pinned)
+└── requirements-dev.txt  # Test dependencies (pytest)
 ```
 
 ## Quick Start
@@ -572,21 +580,26 @@ expenseeye/
 │   ├── overspending.py        # Overspending analysis algorithm
 │   ├── forecast.py            # Cash-flow forecast (Holt-Winters / baseline)
 │   ├── categorizer.py         # ML categorizer (TF-IDF + LogisticRegression)
-│   └── anomaly.py             # Anomaly detection (robust z-score)
+│   ├── anomaly.py             # Anomaly detection (robust z-score)
+│   └── reconcile.py           # Recurring reconciliation (match rate + exceptions)
 ├── models/                    # Trained model + model card (versioned)
-├── data/                      # Synthetic seed + sample data (versioned)
-├── scripts/                   # generate_data.py, train_categorizer.py
+├── data/                      # Synthetic seed, eval and sample data (versioned)
+├── scripts/                   # generate_data.py, train_categorizer.py, make_sample_statement.py
+├── tests/                     # pytest suite, run in CI on every push
 ├── viewer/
 │   ├── src/
 │   │   ├── App.tsx            # Root React component
 │   │   ├── components/        # FileUpload, SubscriptionsTable, OverspendingAnalysis,
-│   │   │                      #   CashFlowForecast, TransactionCategories, AnomalyDetection
+│   │   │                      #   CashFlowForecast, TransactionCategories, AnomalyDetection,
+│   │   │                      #   Reconciliation, plus UI pieces (States, SessionTape, ...)
 │   │   ├── lib/               # axios API client + utils
 │   │   └── types/             # TypeScript interfaces
 │   ├── package.json           # Frontend dependencies
 │   └── vite.config.ts         # Vite config (@ alias → src)
 ├── render.yaml                # Render Blueprint for the API
-├── requirements.txt           # Backend dependencies (incl. scikit-learn, statsmodels)
+├── .python-version            # Interpreter pin (3.11.9)
+├── requirements.txt           # Backend dependencies, all pinned (incl. scikit-learn, statsmodels)
+├── requirements-dev.txt       # Test dependencies (pytest)
 ├── .gitignore                 # Excludes test files and sensitive data
 └── README.md                  # This file
 ```
