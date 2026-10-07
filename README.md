@@ -284,9 +284,7 @@ baseline fallback for sparse history. Reports holdout accuracy.
 }
 ```
 
-#### `GET /forecast?session_id=<uuid>`
-
-Note: the analysis window is capped at the most recent 3 years and the returned
+**Limits:** the analysis window is capped at the most recent 3 years and the returned
 daily series at 400 points (`history_truncated` reports when this applies). A
 statement carrying a mistyped year would otherwise build a continuous daily index
 spanning centuries — 213k points and a ~7.7 MB response from a 3-row file.
