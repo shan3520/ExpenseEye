@@ -218,7 +218,7 @@ curl "https://your-app.onrender.com/overspending?session_id=550e8400-e29b-41d4-a
 **Notes:**
 - Requires minimum 4 months of data (3-month baseline + 1 to analyze)
 - Only returns months flagged as "OVERSPENDING"
-- Uses statistical thresholds (120% of average OR avg + std_dev)
+- Uses statistical thresholds (120% of average OR avg + 2σ)
 
 ---
 
