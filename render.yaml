@@ -7,6 +7,15 @@
 # After the first deploy, set CORS_ORIGINS in the Render dashboard to your
 # Cloudflare Pages URL (e.g. https://<project>.pages.dev) so the browser is
 # allowed to call this API.
+#
+# This file is a template for NEW deployments; it does not drive the live demo.
+# The live API (https://smartspend-v975.onrender.com) was created through the
+# Render dashboard, and Render only applies a Blueprint to services it created,
+# so its build/start commands and Python version are set in the dashboard (and
+# by .python-version), mirroring the values below. The `expenseeye-api` name
+# here is NOT the live service -- an older, stale service by that name exists
+# from the SmartSpend -> ExpenseEye rename. Don't rename this entry to match the
+# live one: syncing a Blueprint creates services, it does not adopt them.
 services:
   - type: web
     name: expenseeye-api
