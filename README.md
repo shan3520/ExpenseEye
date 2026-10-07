@@ -6,7 +6,7 @@
 **Original Author:** [Shantanu](https://github.com/shan3520)  
 **Repository:** [github.com/shan3520/expenseeye](https://github.com/shan3520/expenseeye)
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.11.9-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff.svg)](https://vite.dev/)
@@ -74,7 +74,7 @@ expenseeye/
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.11.9 (pinned by `.python-version`; the pinned pandas 2.1.3 has no wheels for 3.13+)
 - Node.js 20.19+ or 22.12+ (the frontend uses Vite 8)
 - pip and npm
 
@@ -125,7 +125,7 @@ npm run dev
      ```
      gunicorn api.app:app --workers 1 --threads 4 --worker-class gthread --timeout 120 --graceful-timeout 30 --bind 0.0.0.0:$PORT --access-logfile -
      ```
-   - **Environment:** Python 3.11+
+   - **Environment:** Python 3.11.9 (read from `.python-version`)
 
    > `python api/app.py` still works and is what local development uses, but it
    > runs Werkzeug's **development** server, which says so on boot. gunicorn adds
