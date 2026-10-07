@@ -102,8 +102,8 @@ curl -X POST https://your-app.onrender.com/upload \
 - `413 Payload Too Large`: File exceeds 10MB
 
 **Notes:**
-- Session ID is valid for the duration of the server session
-- Database is created in `/tmp/ExpenseEye_{session_id}.db`
+- Session ID is valid until the session is deleted (`DELETE /session/<id>`) or reaped after `SESSION_TTL_SECONDS` (default 30 min)
+- Database is created in the OS temp directory as `expenseeye_{session_id}.db`
 - Automatically detects CSV format
 
 ---
@@ -114,12 +114,12 @@ Retrieve detected subscriptions for a session.
 
 **Endpoint:** `GET /subscriptions`
 
-**Query Parameters:**
-- `session_id` (required): UUID from upload response
+**Headers:** `X-Session-Id: <uuid>` (required) — the `session_id` from the upload response
 
 **Request:**
 ```bash
-curl "https://your-app.onrender.com/subscriptions?session_id=550e8400-e29b-41d4-a716-446655440000"
+curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     https://your-app.onrender.com/subscriptions
 ```
 
 **Success Response:**
@@ -171,12 +171,12 @@ Retrieve overspending analysis for a session.
 
 **Endpoint:** `GET /overspending`
 
-**Query Parameters:**
-- `session_id` (required): UUID from upload response
+**Headers:** `X-Session-Id: <uuid>` (required) — the `session_id` from the upload response
 
 **Request:**
 ```bash
-curl "https://your-app.onrender.com/overspending?session_id=550e8400-e29b-41d4-a716-446655440000"
+curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     https://your-app.onrender.com/overspending
 ```
 
 **Success Response:**
@@ -228,12 +228,12 @@ Forecast upcoming spending for a session.
 
 **Endpoint:** `GET /forecast`
 
-**Query Parameters:**
-- `session_id` (required): UUID from upload response
+**Headers:** `X-Session-Id: <uuid>` (required) — the `session_id` from the upload response
 
 **Request:**
 ```bash
-curl "https://your-app.onrender.com/forecast?session_id=550e8400-e29b-41d4-a716-446655440000"
+curl -H "X-Session-Id: 550e8400-e29b-41d4-a716-446655440000" \
+     https://your-app.onrender.com/forecast
 ```
 
 **Success Response (abridged):**
@@ -292,8 +292,7 @@ Categorize every transaction in a session.
 
 **Endpoint:** `GET /categorize`
 
-**Query Parameters:**
-- `session_id` (required): UUID from upload response
+**Headers:** `X-Session-Id: <uuid>` (required) — the `session_id` from the upload response
 
 **Success Response (abridged):**
 ```json
@@ -343,8 +342,7 @@ Flag unusual transactions for a session.
 
 **Endpoint:** `GET /anomalies`
 
-**Query Parameters:**
-- `session_id` (required): UUID from upload response
+**Headers:** `X-Session-Id: <uuid>` (required) — the `session_id` from the upload response
 
 **Success Response (abridged):**
 ```json
@@ -600,18 +598,18 @@ All errors return JSON with this structure:
 ### Session Lifecycle
 
 1. **Creation:** Upload CSV → Generate UUID → Create database
-2. **Active:** Session ID valid while server running
-3. **Expiration:** Server restart or manual cleanup
+2. **Active:** Session ID valid until it is deleted or expires
+3. **Expiration:** `DELETE /session/<id>` (the UI calls it on exit), or the TTL reaper after `SESSION_TTL_SECONDS` (default 1800s); a server restart also loses it on ephemeral disk
 
 ### Session Storage
 
-- **Location:** `/tmp/ExpenseEye_{session_id}.db`
+- **Location:** `expenseeye_{session_id}.db` in the OS temp directory
 - **Format:** SQLite database
-- **Cleanup:** Automatic on server restart (ephemeral storage)
+- **Cleanup:** `DELETE /session/<id>`, or the TTL reaper (default 30 min)
 
 ### Best Practices
 
-- Store session_id on client side
+- Store session_id on client side and send it in the `X-Session-Id` header, not the URL
 - Re-upload if session expires
 - Don't share session_ids (no authentication)
 
@@ -702,14 +700,14 @@ if data['success']:
     # 2. Get subscriptions
     subs_response = requests.get(
         f'https://your-app.onrender.com/subscriptions',
-        params={'session_id': session_id}
+        headers={'X-Session-Id': session_id}
     )
     subscriptions = subs_response.json()['subscriptions']
     
     # 3. Get overspending
     over_response = requests.get(
         f'https://your-app.onrender.com/overspending',
-        params={'session_id': session_id}
+        headers={'X-Session-Id': session_id}
     )
     overspending = over_response.json()['overspending']
     
@@ -736,7 +734,9 @@ fetch('https://your-app.onrender.com/upload', {
     const sessionId = data.session_id;
     
     // Get subscriptions
-    return fetch(`https://your-app.onrender.com/subscriptions?session_id=${sessionId}`);
+    return fetch('https://your-app.onrender.com/subscriptions', {
+      headers: { 'X-Session-Id': sessionId }
+    });
   }
 })
 .then(res => res.json())

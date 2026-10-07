@@ -213,6 +213,11 @@ Date,Description,Amount
 
 ### Endpoints
 
+Every session-scoped endpoint takes the session id from `POST /upload` in the
+**`X-Session-Id` header**. A `?session_id=` query parameter is still accepted as a
+legacy fallback, but a session id in a URL lands in browser history, proxy logs
+and `Referer` headers. See [docs/API.md](docs/API.md#authentication).
+
 #### `POST /upload`
 Upload a bank statement CSV file.
 
@@ -236,7 +241,7 @@ Upload a bank statement CSV file.
 }
 ```
 
-#### `GET /subscriptions?session_id=<uuid>`
+#### `GET /subscriptions`  (session id via `X-Session-Id`)
 Get detected subscriptions for a session.
 
 **Response:**
@@ -255,7 +260,7 @@ Get detected subscriptions for a session.
 }
 ```
 
-#### `GET /overspending?session_id=<uuid>`
+#### `GET /overspending`  (session id via `X-Session-Id`)
 Get overspending analysis for a session.
 
 **Response:**
@@ -274,7 +279,7 @@ Get overspending analysis for a session.
 }
 ```
 
-#### `GET /forecast?session_id=<uuid>`
+#### `GET /forecast`  (session id via `X-Session-Id`)
 Cash-flow forecast (ML). Forecasts the next 30 days and next month of spending
 using Holt-Winters exponential smoothing, with a moving-average/linear-trend
 baseline fallback for sparse history. Reports holdout accuracy.
@@ -317,7 +322,7 @@ series billed on the 3rd of every month that produced a 71.2% match rate with 21
 missing and 23 unscheduled; the correct answer, now reported, is 100% with an empty
 exception list.
 
-#### `GET /categorize?session_id=<uuid>`
+#### `GET /categorize`  (session id via `X-Session-Id`)
 ML transaction categorization. Uses a trained TF-IDF + LogisticRegression
 classifier, falling back to rule-based keyword matching only for low-confidence
 predictions.
@@ -344,7 +349,7 @@ Returns the categorizer's held-out evaluation metrics (no session required).
 }
 ```
 
-#### `GET /anomalies?session_id=<uuid>`
+#### `GET /anomalies`  (session id via `X-Session-Id`)
 Statistical anomaly detection. Flags unusual transactions using robust
 per-category z-scores (median + MAD) and explains why each was flagged.
 

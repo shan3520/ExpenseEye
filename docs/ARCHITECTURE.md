@@ -103,18 +103,21 @@ enough to label the same charge differently in two cards on the same screen.
 - Session management
 - Error handling
 
-**Endpoints:**
+**Endpoints** (session-scoped ones read the session id from the `X-Session-Id` header; `?session_id=` is a legacy fallback):
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | POST | `/upload` | Upload CSV and create session |
-| GET | `/subscriptions?session_id=<uuid>` | Get subscription analysis |
-| GET | `/overspending?session_id=<uuid>` | Get overspending analysis |
-| GET | `/forecast?session_id=<uuid>` | Cash-flow forecast (ML) |
-| GET | `/categorize?session_id=<uuid>` | Transaction categorization (ML) |
+| GET | `/subscriptions` | Get subscription analysis |
+| GET | `/overspending` | Get overspending analysis |
+| GET | `/forecast` | Cash-flow forecast (ML) |
+| GET | `/categorize` | Transaction categorization (ML) |
 | GET | `/model-card` | Categorizer evaluation metrics (ML) |
-| GET | `/anomalies?session_id=<uuid>` | Anomaly detection (ML) |
+| GET | `/anomalies` | Anomaly detection (ML) |
 | GET | `/health` | Health check |
+| GET | `/reconcile` | Recurring reconciliation (match rate + exceptions) |
+| DELETE | `/session/<uuid>` | Delete a session's data |
+| POST | `/preview-csv` | Inspect detected header/columns without a session |
 
 **Session Management:**
 - UUID-based session IDs
@@ -421,7 +424,7 @@ Play the Processing terminal boot sequence (~2.5s), then reveal the dashboard
 ```
 User clicks "Detect Subscriptions"
     ↓
-React frontend calls /subscriptions?session_id={uuid}
+React frontend calls /subscriptions (X-Session-Id: {uuid})
     ↓
 Flask retrieves session database
     ↓
@@ -497,7 +500,7 @@ React frontend displays results
 
 ### 2. Session Security
 - UUID v4 for session IDs (cryptographically random)
-- No session data in URLs (except session_id)
+- No session data in URLs: the session id travels in the `X-Session-Id` header
 - Temporary file cleanup
 
 ### 3. Data Privacy
