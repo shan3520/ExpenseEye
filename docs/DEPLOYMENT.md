@@ -53,7 +53,9 @@ joblib==1.5.1
 > committed, so **no training runs at deploy time** -- but the first build is
 > slower and more memory-hungry than a plain Flask app (see notes in Step 3). A
 > [`render.yaml`](../render.yaml) Blueprint is also included, though note it is
-> only read for Blueprint-created services.
+> only read for Blueprint-created services. The live API (`smartspend-v975`) was
+> created in the dashboard, so the Blueprint (which names its service
+> `expenseeye-api`) is a template for new deployments, not the live config.
 
 ### Step 2: Create Render Web Service
 

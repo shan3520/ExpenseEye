@@ -113,7 +113,9 @@ npm run dev
 
 > **Live deployment:** API on **Render** (`https://smartspend-v975.onrender.com`),
 > frontend on **Cloudflare Pages** (`https://expenseeye.pages.dev`). A
-> [`render.yaml`](render.yaml) Blueprint is included.
+> [`render.yaml`](render.yaml) Blueprint is included for new deployments; the
+> live service was created in the Render dashboard, which does not read it, so
+> its settings are kept in step by hand.
 
 ### Backend (Render)
 
