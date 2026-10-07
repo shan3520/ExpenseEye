@@ -199,16 +199,21 @@ load_csv_to_db(csv_path, db_path)
 **Algorithm:**
 
 ```
-1. Group transactions by (description, amount)
-2. Filter: amount < 0 (debits only)
-3. Require: minimum 3 occurrences
-4. Calculate day gaps between consecutive transactions
-5. Compute: average gap, std deviation
-6. Classify frequency:
-   - MONTHLY: 25-35 days average
-   - WEEKLY: 5-9 days average
-7. Validate consistency: std_dev < 20% of avg_gap
-8. Return subscriptions with confidence scores
+1. Filter: amount < 0 (debits only)
+2. Group by NORMALIZED description (card/reference digits stripped) and an
+   amount BAND: within 15% or 50 of the group median, so a price change does
+   not split a series
+3. Reject a lucky slice of a variable-spend merchant: the band must cover
+   >= 50% of that merchant's charges OR be effectively fixed-price
+   (amount MAD <= 1% or 5)
+4. Calculate day gaps between consecutive charges; cadence = MEDIAN gap
+5. Classify frequency (minimum occurrences in brackets):
+   - WEEKLY: 6-8 days (4)
+   - FORTNIGHTLY: 12-16 days (4)
+   - MONTHLY: 25-35 days (3)
+   - QUARTERLY: 84-100 days (4)
+6. Validate regularity: gap MAD <= min(40% of median gap, 7 days)
+7. Return subscriptions with confidence scores (pure read; no DB writes)
 ```
 
 **Output Schema:**
@@ -248,7 +253,7 @@ load_csv_to_db(csv_path, db_path)
    c. Handle edge case: std_dev = max(actual_std, avg * 0.1)
    d. Define thresholds:
       - Threshold 1: avg * 1.2 (20% above average)
-      - Threshold 2: avg + std_dev (statistical outlier)
+      - Threshold 2: avg + 2 * std_dev (statistical outlier)
    e. Flag if spending > either threshold
    f. Calculate percentage deviation
 3. Return flagged months with statistics
@@ -381,9 +386,9 @@ CREATE TABLE transactions (
 ```
 
 **Session Isolation:**
-- Each upload creates a new database: `/tmp/ExpenseEye_{uuid}.db`
+- Each upload creates a new database: `expenseeye_{uuid}.db` in the OS temp directory
 - No cross-session data access
-- Automatic cleanup on session end
+- Cleanup on `DELETE /session/<uuid>` (called on exit), with a TTL reaper (default 30 min) as the safety net
 
 **Indexing:**
 - Primary key on `id`
@@ -402,7 +407,7 @@ Flask validates file
     ↓
 Generate session UUID
     ↓
-Create temp database: /tmp/ExpenseEye_{uuid}.db
+Create temp database: <tempdir>/expenseeye_{uuid}.db
     ↓
 Call load_csv_to_db()
     ↓
